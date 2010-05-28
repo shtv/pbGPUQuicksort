@@ -1,5 +1,7 @@
 /*
  * Copyright 2010 Pawel Baran.
+ * 
+ * shatov33@gmail.com
  *
  */
 
@@ -7,11 +9,17 @@
 #  define NOMINMAX 
 #endif
 
-// liczba tablic, ktorych rozmiar rowny n_1
-#define NUM_OF_SHARED_ARRAY 6 // for num_of_elements=1024 should be 4 (unreachable)
+/*
+#define NUM_OF_ELEMENTS_PER_THREAD 2 // only even and > 0
+#define NUM_OF_SHARED_ARRAY 6
 #define NUM_OF_ELEMENTS 128
-#define NUM_OF_ELEMENTS_PER_THREAD 2
 #define NUM_OF_THREADS_PER_BLOCK 512
+*/
+
+#define NUM_OF_ELEMENTS_PER_BLOCK 512 // 2 to the power of k, where k = 1, 2, ...
+#define NUM_OF_THREADS_PER_BLOCK 256 // k, where k = 1, 2, ...
+#define NUM_OF_ELEMENTS 128 // k, where k = 1, 2, ...
+#define NUM_OF_ARRAYS_PER_BLOCK 6
 
 // includes, system
 #include <stdlib.h>
@@ -62,26 +70,24 @@ runTest( int argc, char** argv)
         cudaSetDevice( cutGetMaxGflopsDeviceId() );
 
     unsigned int num_elements = NUM_OF_ELEMENTS;
-
-		// liczba elemnt√w 
-		unsigned int num_elements_mem;
+    unsigned int num_elements_per_block = NUM_OF_ELEMENTS_PER_BLOCK;
+    unsigned int num_threads_per_block = NUM_OF_THREADS_PER_BLOCK;
+/*
+		// nearest power of 2 greater than or equal num_elements_per_block
+		unsigned int num_elements2;
 		int i=1;
-		while(i<num_elements) i<<=1;
-		num_elements_mem=i;
+		while(i<num_elements_per_block) i<<=1;
+		num_elements2=i;
+*/
 //    cutGetCmdLineArgumenti( argc, (const char**) argv, "n", (int*)&num_elements);
 
     unsigned int timer;
     cutilCheckError( cutCreateTimer(&timer));
     
-    const unsigned int num_threads = (int)ceil(NUM_OF_ELEMENTS
-			/NUM_OF_ELEMENTS_PER_THREAD);
-		const unsigned int num_blocks = 1+(int)ceil(num_threads/NUM_OF_THREADS_PER_BLOCK);
-    const unsigned int mem_size = sizeof( float) * num_elements;
-		const unsigned int num_elements_per_block = NUM_OF_ELEMENTS_PER_THREAD
-			*NUM_OF_THREADS_PER_BLOCK;
+		const unsigned int num_blocks = 1+(int)ceil(num_elements/num_elements_per_block); // num_blocks - 1 should not be greater than num_elements_per_block, otherwise one thread in special block has more elements to computing
+    const unsigned int mem_size = sizeof(float) * num_elements;
 
-		const unsigned int shared_mem_size = NUM_OF_SHARED_ARRAY*sizeof(float)*num_blocks
-			*num_elements_per_block;
+		const unsigned int shared_mem_size = NUM_OF_ARRAYS_PER_BLOCK*sizeof(float)*num_elements_per_block;
 
     // allocate host memory to store the input data
     float* h_data = (float*) malloc( mem_size);
@@ -89,22 +95,6 @@ runTest( int argc, char** argv)
     // initialize the input data on the host to be integer values
     // between 0 and 1000
 		srand(time(NULL));
-/*h_data[0] = 4;
-h_data[1] = 3;
-h_data[2] = 2;
-h_data[3] = 1;
-h_data[4] = 4;
-h_data[5] = 5;
-h_data[6] = 7;
-h_data[7] = 6;
-h_data[8] = 1;
-h_data[9] = 10;
-h_data[10] = 12;
-h_data[11] = 13;
-h_data[12] = 15;
-h_data[13] = 14;
-h_data[14] = 16;
-h_data[15] = 11;*/
     for( unsigned int i = 0; i < num_elements; ++i) 
     {
         h_data[i] = floorf(1000*(rand()/(float)RAND_MAX));
@@ -128,16 +118,12 @@ h_data[15] = 11;*/
     // copy host memory to device input array
     cutilSafeCall( cudaMemcpy( d_idata, h_data, mem_size, cudaMemcpyHostToDevice) );
 
-    // setup execution parameters
-    // Note that these scans only support a single thread-block worth of data,
-    // but we invoke them here on many blocks so that we can accurately compare
-    // performance
 #ifndef __DEVICE_EMULATION__
     dim3  grid(1, 1, 1);  
 #else
-    dim3  grid(1, 1, 1); // only one run block in device emu mode or it will be too slow
+    dim3  grid(num_blocks, 1, 1); // 
 #endif
-    dim3  threads(num_threads, 1, 1);
+    dim3  threads(num_threads_per_block, 1, 1);
 
     // make sure there are no CUDA errors before we start
     cutilCheckMsg("Kernel execution failed");
@@ -146,14 +132,13 @@ h_data[15] = 11;*/
   
     // execute the kernels
     unsigned int numIterations = 1;
-//    threads.x = num_threads;
     
-    printf("quicksort:\n");
+    printf("pbGPUQuicksort:\n");
     cutStartTimer(timer);
     for (unsigned int i = 0; i < numIterations; ++i)
     {
         quicksort_kernel<<< grid, threads, shared_mem_size >>>
-            (d_odata, d_idata, num_elements, num_elements_mem);
+            (d_odata, d_idata, num_elements);
     }
     cudaThreadSynchronize();
     cutStopTimer(timer);
