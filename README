@@ -1,0 +1,4 @@
+Move it to cuda sdk directory 'projects'.
+Then make.
+To run:
+{cuda sdk}/bin/linux/release/pbGPUQuicksort
