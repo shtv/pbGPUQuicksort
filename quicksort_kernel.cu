@@ -6,21 +6,7 @@
 #ifndef _SCAN_WORKEFFICIENT_KERNEL_H_
 #define _SCAN_WORKEFFICIENT_KERNEL_H_
 
-///////////////////////////////////////////////////////////////////////////////
-//! Work-efficient compute implementation of scan, one thread per 2 elements
-//! Work-efficient: O(log(n)) steps, and O(n) adds.
-//! Also shared storage efficient: Uses n elements in shared mem -- no ping-ponging
-//! Uses a balanced tree type algorithm.  See Blelloch, 1990 "Prefix Sums 
-//! and Their Applications", or Prins and Chatterjee PRAM course notes:
-//! https://www.cs.unc.edu/~prins/Classes/633/Handouts/pram.pdf
-//!
-//! Pro: Work Efficient
-//! Con: Shared memory bank conflicts due to the addressing used.
-//
-//! @param g_odata  output data in global memory
-//! @param g_idata  input data in global memory
-//! @param n        input number of elements to scan from input data
-///////////////////////////////////////////////////////////////////////////////
+#include "elem.h"
 
 __device__ float is_sorted(const float* keys,int n){
 	int thid=threadIdx.x;
@@ -289,9 +275,18 @@ return;
 	__syncthreads();
 }*/
 
-__global__ void quicksort_kernel(float *g_odata, float *g_idata, int n_real,int n)
+
+// n_real - number of elements to be sorted
+// n - number of elements to be sorted in each block
+__global__ void quicksort_kernel(elem *g_elems, int n_real,int n)
 {
-  int thid=threadIdx.x;
+	int threads=blockDim.x; // number of threads in each block
+	int bid=blockIdx.x; // given block's number
+  int thid=threadIdx.x; // thread's number in given block
+
+
+
+	/*
 	int i,i1,i2,f1,f2;
 	float temp1,temp2;
 	extern __shared__ float absolute_shared[];
@@ -383,7 +378,7 @@ __global__ void quicksort_kernel(float *g_odata, float *g_idata, int n_real,int 
 
 //	g_odata[2*thid]=data[2*thid];
 //	g_odata[2*thid+1]=data[2*thid+1];
-
+*/
 }
 
 #endif // #ifndef _SCAN_WORKEFFICIENT_KERNEL_H_

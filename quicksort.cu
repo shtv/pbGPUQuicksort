@@ -23,7 +23,6 @@
 #define NUM_OF_ELEMENTS 128 // k, where k = 1, 2, ...
 #define NUM_OF_ARRAYS_PER_BLOCK 6
 
-// includes, system
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -32,26 +31,22 @@
 
 #include <time.h>
 
-// includes, project
 #include <cutil_inline.h>
 
-// includes, kernels
 #include <quicksort_kernel.cu>
 
-////////////////////////////////////////////////////////////////////////////////
-// declaration, forward
+#include "elem.h"
+
+tab* table;
+
 void runTest( int argc, char** argv);
 
-// regression test functionality
 extern "C" 
 unsigned int compare( const char* reference, const float* data, 
                       const unsigned int len);
 extern "C" 
 void computeGold( float* reference, float* idata, const unsigned int len);
 
-////////////////////////////////////////////////////////////////////////////////
-// Program main
-////////////////////////////////////////////////////////////////////////////////
 int 
 main( int argc, char** argv) 
 {
@@ -59,13 +54,9 @@ main( int argc, char** argv)
     cutilExit(argc, argv);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//! Run a scan test for CUDA
-////////////////////////////////////////////////////////////////////////////////
 void
 runTest( int argc, char** argv) 
 {
-    // use command-line specified CUDA device, otherwise use device with highest Gflops/s
     if( cutCheckCmdLineFlag(argc, (const char**)argv, "device") )
         cutilDeviceInit(argc, argv);
     else
@@ -96,8 +87,12 @@ runTest( int argc, char** argv)
 
 		const unsigned int shared_mem_size = NUM_OF_ARRAYS_PER_BLOCK*sizeof(float)*num_elements_per_block;
 
-    // allocate host memory to store the input data
+		const unsigned int n=(num_blocks-1)*num_elements_per_block;
+
     float* h_data = (float*) malloc( mem_size);
+		table=make_tab(n);
+
+		elem* d_elems;
       
     // initialize the input data on the host to be integer values
     // between 0 and 1000
@@ -105,8 +100,15 @@ runTest( int argc, char** argv)
     for( unsigned int i = 0; i < num_elements; ++i) 
     {
         h_data[i] = floorf(1000*(rand()/(float)RAND_MAX));
+				
+				if(rand() & 1) h_data[i]*=-1.0;
+
+				table->elems[i].val = (int)h_data[i];
 				printf("h_data[%d] = %f;\n",i,h_data[i]);
     }
+		for(unsigned int i=num_elements;i<n;++i){
+			table->elems[i].val=0;
+		}
 
     // compute reference solution
     float* reference = (float*) malloc( mem_size); 
@@ -117,19 +119,20 @@ runTest( int argc, char** argv)
 		float time=end-start;
 
     // allocate device memory input and output arrays
-    float* d_idata;
-    float* d_odata;
-    cutilSafeCall( cudaMalloc( (void**) &d_idata, mem_size));
-    cutilSafeCall( cudaMalloc( (void**) &d_odata, mem_size));
+//    float* d_idata;
+//    float* d_odata;
+//    cutilSafeCall( cudaMalloc( (void**) &d_idata, mem_size));
+//    cutilSafeCall( cudaMalloc( (void**) &d_odata, mem_size));
+    cutilSafeCall( cudaMalloc( (void**) &d_elems, table->n));
 
     // copy host memory to device input array
-    cutilSafeCall( cudaMemcpy( d_idata, h_data, mem_size, cudaMemcpyHostToDevice) );
+    cutilSafeCall( cudaMemcpy( d_elems, table->elems, table->n, cudaMemcpyHostToDevice) );
 
-#ifndef __DEVICE_EMULATION__
+/*#ifndef __DEVICE_EMULATION__
     dim3  grid(1, 1, 1);  
-#else
+#else*/
     dim3  grid(num_blocks, 1, 1); // 
-#endif
+/*#endif*/
     dim3  threads(num_threads_per_block, 1, 1);
 
     // make sure there are no CUDA errors before we start
@@ -145,7 +148,7 @@ runTest( int argc, char** argv)
     for (unsigned int i = 0; i < numIterations; ++i)
     {
         quicksort_kernel<<< grid, threads, shared_mem_size >>>
-            (d_odata, d_idata, num_elements);
+            (d_elems, num_elements,num_elements_per_block);
     }
     cudaThreadSynchronize();
     cutStopTimer(timer);
@@ -173,7 +176,7 @@ runTest( int argc, char** argv)
             
             // We can use an epsilon of 0 since values are integral and in a range 
             // that can be exactly represented
-            float epsilon = 0.0f;
+ /*           float epsilon = 0.0f;
             unsigned int result_regtest = cutComparefe( reference, h_data, num_elements, epsilon);
             char* names[] = {"quicksort"};
             printf( "%s: Test %s h[0]=%f\n", names[0], (1 == result_regtest) ? "PASSED" : "FAILED", h_data[1]);
@@ -181,15 +184,17 @@ runTest( int argc, char** argv)
 				    {
 							printf("h_data[%d] = %f\n",i,h_data[i]);
 				    }
+*/
         }
-
     printf("\nAuthor: Paweł Baran. e-mail: shatov33@gmail.com .\n");
 
     // cleanup memory
     free( h_data);
     free( reference);
-    cutilSafeCall(cudaFree(d_idata));
-    cutilSafeCall(cudaFree(d_odata));
+//    cutilSafeCall(cudaFree(d_idata));
+//    cutilSafeCall(cudaFree(d_odata));
+    cutilSafeCall(cudaFree(d_elems));
+		free_tab(table);
     cutilCheckError(cutDeleteTimer(timer));
 
     cudaThreadExit();
