@@ -36,6 +36,7 @@
 #include <quicksort_kernel.cu>
 
 #include "elem.h"
+#include "elem.cu"
 
 tab* table;
 
@@ -123,10 +124,10 @@ runTest( int argc, char** argv)
 //    float* d_odata;
 //    cutilSafeCall( cudaMalloc( (void**) &d_idata, mem_size));
 //    cutilSafeCall( cudaMalloc( (void**) &d_odata, mem_size));
-    cutilSafeCall( cudaMalloc( (void**) &d_elems, table->n));
+    cutilSafeCall( cudaMalloc( (void**) &d_elems, table->n*sizeof(elem)));
 
     // copy host memory to device input array
-    cutilSafeCall( cudaMemcpy( d_elems, table->elems, table->n, cudaMemcpyHostToDevice) );
+    cutilSafeCall( cudaMemcpy( d_elems, table->elems, table->n*sizeof(elem), cudaMemcpyHostToDevice) );
 
 /*#ifndef __DEVICE_EMULATION__
     dim3  grid(1, 1, 1);  
@@ -160,8 +161,7 @@ runTest( int argc, char** argv)
     cutilCheckMsg("Kernel execution failed");
 
         // copy result from device to host
-        cutilSafeCall(cudaMemcpy( h_data, d_odata, sizeof(float) * num_elements, 
-                                   cudaMemcpyDeviceToHost));
+        cutilSafeCall(cudaMemcpy( table->elems, d_elems,table->n*sizeof(elem),cudaMemcpyDeviceToHost));
 
         // If this is a regression test write the results to a file
         if( cutCheckCmdLineFlag( argc, (const char**) argv, "regression")) 
