@@ -16,8 +16,10 @@
 #define NUM_OF_THREADS_PER_BLOCK 512
 */
 
-#define NUM_OF_ELEMENTS_PER_BLOCK 512 // 2 to the power of k, where k = 1, 2, ...
-#define NUM_OF_THREADS_PER_BLOCK 256 // k, where k = 1, 2, ...
+#define MAX_NUM_OF_THREADS_PER_BLOCK 512
+
+// #define NUM_OF_ELEMENTS_PER_BLOCK 1024 // 2 to the power of k, where k = 1, 2, ...
+// #define NUM_OF_THREADS_PER_BLOCK 256 // k, where k = 1, 2, ...
 #define NUM_OF_ELEMENTS 128 // k, where k = 1, 2, ...
 #define NUM_OF_ARRAYS_PER_BLOCK 6
 
@@ -70,8 +72,13 @@ runTest( int argc, char** argv)
         cudaSetDevice( cutGetMaxGflopsDeviceId() );
 
     unsigned int num_elements = NUM_OF_ELEMENTS;
-    unsigned int num_elements_per_block = NUM_OF_ELEMENTS_PER_BLOCK;
-    unsigned int num_threads_per_block = NUM_OF_THREADS_PER_BLOCK;
+
+    unsigned int num_elements_per_block = 1; // NUM_OF_ELEMENTS_PER_BLOCK;
+		while(num_elements_per_block*num_elements_per_block<num_elements) num_elements_per_block<<=1;
+
+    unsigned int num_threads_per_block = 1; // NUM_OF_THREADS_PER_BLOCK;
+		while(num_threads_per_block<MAX_NUM_OF_THREADS_PER_BLOCK && num_threads_per_block<2*num_elements_per_block) num_threads_per_block<<=1;
+
 /*
 		// nearest power of 2 greater than or equal num_elements_per_block
 		unsigned int num_elements2;
