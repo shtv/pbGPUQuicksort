@@ -127,7 +127,7 @@ runTest( int argc, char** argv)
 
 
 		// TO BE CHANGED
-		const unsigned int shared_mem_size=NUM_OF_ARRAYS_PER_BLOCK*sizeof(float)*num_threads_per_block*2;
+		const unsigned int shared_mem_size=16384;//NUM_OF_ARRAYS_PER_BLOCK*sizeof(float)*num_threads_per_block*2;
 
     // make sure there are no CUDA errors before we start
     cutilCheckMsg("Kernel execution failed");
