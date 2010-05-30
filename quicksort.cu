@@ -21,7 +21,7 @@
 
 // #define NUM_OF_ELEMENTS_PER_BLOCK 1024 // 2 to the power of k, where k = 1, 2, ...
 // #define NUM_OF_THREADS_PER_BLOCK 256 // k, where k = 1, 2, ...
-#define NUM_OF_ELEMENTS 4 // k, where k = 1, 2, ...
+#define NUM_OF_ELEMENTS 400000 // k, where k = 1, 2, ...
 #define NUM_OF_ARRAYS_PER_BLOCK 6
 
 #include <stdlib.h>
@@ -97,10 +97,10 @@ runTest( int argc, char** argv)
 	{
 		int el = 1000*(rand()/(float)RAND_MAX);
 		if(rand() & 1) el*=-1;
-		printf("el=%d\n",el);	
+//		printf("el=%d\n",el);	
 
 		table->elems[i].val = el;
-		printf("h_data[%d] = %d;\n",i,table->elems[i].val);
+//		printf("h_data[%d] = %d;\n",i,table->elems[i].val);
 	}
 	for(unsigned int i=num_elements;i<n;++i){
 		table->elems[i].val=0;
@@ -134,8 +134,8 @@ runTest( int argc, char** argv)
   
 	unsigned int numIterations = 1;
 	
-	printf("pbGPUQuicksort with params:\n- blocks=%d,\n- elements=%d,\n- elements2block=%d,\n- threads2block=%d\n"
-			,num_blocks,num_elements,num_elements_per_block,num_threads_per_block);
+	printf("pbGPUQuicksort with params:\n- blocks=%d,\n- elements=%d,\n- elements2thread=%d\n"
+			,num_blocks,num_elements,num_elements_per_thread);
 	cutStartTimer(timer);
 	for (unsigned int i = 0; i < numIterations; ++i)
 	{
@@ -152,8 +152,8 @@ runTest( int argc, char** argv)
 	cutilCheckMsg("Kernel execution failed");
 
 	cutilSafeCall(cudaMemcpy( table->elems, d_elems,table->n*sizeof(elem),cudaMemcpyDeviceToHost));
-	for( unsigned int i = 0; i < num_elements; ++i)
-		printf("h_data[%d] = %d\n",i,table->elems[i]);
+/*	for( unsigned int i = 0; i < num_elements; ++i)
+		printf("h_data[%d] = %d\n",i,table->elems[i]);*/
 	printf("\nAuthor: Paweł Baran. e-mail: shatov33@gmail.com .\n");
 
 	// cleanup memory
