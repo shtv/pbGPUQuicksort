@@ -153,39 +153,14 @@ runTest( int argc, char** argv)
     // check for any errors
     cutilCheckMsg("Kernel execution failed");
 
-        // copy result from device to host
-        cutilSafeCall(cudaMemcpy( table->elems, d_elems,table->n*sizeof(elem),cudaMemcpyDeviceToHost));
-    				for( unsigned int i = 0; i < num_elements; ++i) 
-							printf("h_data[%d] = %d\n",i,table->elems[i]);
-/*
-        // If this is a regression test write the results to a file
-        if( cutCheckCmdLineFlag( argc, (const char**) argv, "regression")) 
-        {
-            // write file for regression test 
-            cutWriteFilef( "./data/result.dat", h_data, num_elements, 0.0);
-        }
-        else 
-        {
-            // custom output handling when no regression test running
-            // in this case check if the result is equivalent to the expected soluion
-            
-            // We can use an epsilon of 0 since values are integral and in a range 
-            // that can be exactly represented
-            float epsilon = 0.0f;
-            unsigned int result_regtest = cutComparefe( reference, h_data, num_elements, epsilon);
-            char* names[] = {"quicksort"};
-            printf( "%s: Test %s h[0]=%f\n", names[0], (1 == result_regtest) ? "PASSED" : "FAILED", h_data[1]);
-    				for( unsigned int i = 0; i < num_elements; ++i) 
-							printf("h_data[%d] = %f\n",i,table->elems[i].val);
-
-        }*/
+		cutilSafeCall(cudaMemcpy( table->elems, d_elems,table->n*sizeof(elem),cudaMemcpyDeviceToHost));
+		for( unsigned int i = 0; i < num_elements; ++i)
+			printf("h_data[%d] = %d\n",i,table->elems[i]);
     printf("\nAuthor: Paweł Baran. e-mail: shatov33@gmail.com .\n");
 
     // cleanup memory
     free( h_data);
     free( reference);
-//    cutilSafeCall(cudaFree(d_idata));
-//    cutilSafeCall(cudaFree(d_odata));
     cutilSafeCall(cudaFree(d_elems));
 		free_tab(table);
     cutilCheckError(cutDeleteTimer(timer));
