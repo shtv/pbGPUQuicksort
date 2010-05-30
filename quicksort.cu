@@ -21,7 +21,7 @@
 
 // #define NUM_OF_ELEMENTS_PER_BLOCK 1024 // 2 to the power of k, where k = 1, 2, ...
 // #define NUM_OF_THREADS_PER_BLOCK 256 // k, where k = 1, 2, ...
-#define NUM_OF_ELEMENTS 400000 // k, where k = 1, 2, ...
+#define NUM_OF_ELEMENTS 1024 // k, where k = 1, 2, ...
 #define NUM_OF_ARRAYS_PER_BLOCK 6
 
 #include <stdlib.h>
@@ -120,7 +120,7 @@ runTest( int argc, char** argv)
 	dim3  grid(num_blocks, 1, 1); // 
 	dim3  threads(MAX_NUM_OF_THREADS_PER_BLOCK, 1, 1);
 
-	const unsigned int num_threads_per_block=MAX_NUM_OF_THREADS_PER_BLOCK;
+//	const unsigned int num_threads_per_block=MAX_NUM_OF_THREADS_PER_BLOCK;
 	const unsigned int num_elements_per_block=n/num_blocks;
 
 
