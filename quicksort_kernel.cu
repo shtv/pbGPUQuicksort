@@ -278,13 +278,15 @@ return;
 
 // n_real - number of elements to be sorted
 // n - number of elements to be sorted in each block
-__global__ void quicksort_kernel(elem *g_elems, int n_real,int n)
-{
+__global__ void quicksort_kernel(elem *g_elems, int n_real,int n,int num_blocks){
 	int threads=blockDim.x; // number of threads in each block
 	int bid=blockIdx.x; // given block's number
   int thid=threadIdx.x; // thread's number in given block
+	int begin=(thid+bid*threads)*n;
 
-
+	if(bid<num_blocks-1){ // last block is special
+		g_elems[begin].val=begin;
+	}
 
 	/*
 	int i,i1,i2,f1,f2;

@@ -10,7 +10,7 @@ typedef struct{
 	elem* elems;
 } tab;
 
-tab* make_tab(int a);
+tab* make_tab(int);
 
-void free_tab(tab* a);
+void free_tab(tab*);
 #endif
