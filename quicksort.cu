@@ -21,7 +21,7 @@
 
 // #define NUM_OF_ELEMENTS_PER_BLOCK 1024 // 2 to the power of k, where k = 1, 2, ...
 // #define NUM_OF_THREADS_PER_BLOCK 256 // k, where k = 1, 2, ...
-#define NUM_OF_ELEMENTS 23 // k, where k = 1, 2, ...
+#define NUM_OF_ELEMENTS 1024 // k, where k = 1, 2, ...
 #define NUM_OF_ARRAYS_PER_BLOCK 6
 
 #include <stdlib.h>
@@ -56,8 +56,14 @@ int main( int argc, char** argv){
 void quicksort(dim3 grid,dim3 threads,int shared_mem_size,elem* d_elems,sum* d_sums,int num_elements,int num_elements_per_block,int num_blocks,int num_blocks2){
 		dim3 grid2(1,1,1);
 		int num_threads2=num_blocks2/2;
+		num_threads2+=num_blocks2 & 1;
 		while(num_threads2>MAX_NUM_OF_THREADS_PER_BLOCK)
-			num_threads2>>=2;
+			if(num_threads2 & 1){
+				num_threads2>>=2;
+				++num_threads2;
+			}else
+				num_threads2>>=2;
+
 		dim3 threads2(num_threads2,1,1);
 
 		check_order<<< grid, threads, shared_mem_size >>>
@@ -175,8 +181,9 @@ runTest( int argc, char** argv)
 
 	cutilSafeCall(cudaMemcpy( table->elems, d_elems,table->n*sizeof(elem),cudaMemcpyDeviceToHost));
 	cutilSafeCall(cudaMemcpy( table->sums, d_sums,num_blocks2*sizeof(sum),cudaMemcpyDeviceToHost));
-	for( unsigned int i = 0; i < num_elements; ++i)
-		printf("h_data[%d] = %d\n",i,table->elems[i]);
+/*	for( unsigned int i = 0; i < num_elements; ++i)
+		printf("h_data[%d] = %d\n",i,table->elems[i]);*/
+	printf("h_data[%d] = %d\n",0,table->elems[0]);
 	printf("\nAuthor: Paweł Baran. e-mail: shatov33@gmail.com .\n");
 
 	// cleanup memory
