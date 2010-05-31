@@ -275,18 +275,63 @@ return;
 	__syncthreads();
 }*/
 
+__device__ int is_sorted2(int1* elems,int n,int thid,int bid,int threads,int* f,elem* g_elems){
+	int sorted_thread=1;
+	for(int i=0;i<n;++i){
+		if(elems[i].x>elems[i+1].x){
+			sorted_thread=0;
+			break;
+		}
+	}
+
+	f[thid]=sorted_thread;
+
+	int offset=1;
+	for(int d=threads>>1;d>0;d>>=1){
+		__syncthreads();
+		if(thid<d){
+			int ai=offset*(2*thid+1)-1;
+			int bi=offset*(2*thid+2)-1;
+			f[bi]|=f[ai];
+		}
+		offset<<=1;
+	}
+
+	if(thid==0){ // po jednym wątku z każdego bloku, do zapisu danych na blok sumy
+//		g_elems[bid*threads].
+	}
+}
+
 
 // n_real - number of elements to be sorted
 // n - number of elements to be sorted in each block
-__global__ void quicksort_kernel(elem *g_elems, int n_real,int n,int num_blocks){
-	int threads=blockDim.x; // number of threads in each block
+//__global__ void quicksort_kernel(elem *g_elems, int n_real,int n,int num_blocks){
+__global__ void check_order(elem *g_elems, sum* g_sums, int n_real,int n,int num_blocks){
+	const int threads=blockDim.x; // number of threads in each block
 	int bid=blockIdx.x; // given block's number
   int thid=threadIdx.x; // thread's number in given block
-	int begin=(thid+bid*threads)*n;
+	int thread_elems=n/threads; // number of elements in ech thread
+	int begin=bid*n+thid*thread_elems;
 
-	if(bid<num_blocks-1){ // last block is special
-		g_elems[begin].val=begin;
+	extern __shared__ float absolute_shared[];
+	int* f=(int*)&absolute_shared[0];
+
+	int1 elems[thread_elems+1];
+	// przepisanie wartości z globalnej do rejestrów
+	for(int i=0;i<thread_elems;++i){
+		elems[i].x=g_elems[begin+i].val;
 	}
+	if(bid==num_blocks-1 && thid==threads-1)
+		elems[thread_elems].x=INT_MAX;
+	else
+		elems[thread_elems].x=g_elems[begin+thread_elems].val;
+
+//	__syncthreads();
+	int sorted=is_sorted2(elems,thread_elems,thid,bid,threads,f,g_elems);
+	if(thid==0)
+		g_sums[bid].val=sorted;
+
+//	g_elems[begin]=is_sorted2();
 
 	/*
 	int i,i1,i2,f1,f2;

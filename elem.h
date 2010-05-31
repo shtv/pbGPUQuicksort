@@ -2,12 +2,17 @@
 #define _ELEM_TO_PBQUICKSORT
 typedef struct{
 	int val;
-	int good_successor;
+	short at_place;
 } elem;
+
+typedef struct{
+	int val;
+} sum;
 
 typedef struct{
 	int n;
 	elem* elems;
+	sum* sums;
 } tab;
 
 tab* make_tab(int);
