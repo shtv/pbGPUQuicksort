@@ -53,9 +53,18 @@ int main( int argc, char** argv){
 	cutilExit(argc, argv);
 }
 
-void quicksort(dim3 grid,dim3 threads,int shared_mem_size,elem* d_elems,sum* d_sums,int num_elements,int num_elements_per_block,int num_blocks){
+void quicksort(dim3 grid,dim3 threads,int shared_mem_size,elem* d_elems,sum* d_sums,int num_elements,int num_elements_per_block,int num_blocks,int num_blocks2){
+		dim3 grid2(1,1,1);
+		int num_threads2=num_blocks2/2;
+		while(num_threads2>MAX_NUM_OF_THREADS_PER_BLOCK)
+			num_threads2>>=2;
+		dim3 threads2(num_threads2,1,1);
+
 		check_order<<< grid, threads, shared_mem_size >>>
-			(d_elems, d_sums, num_elements,num_elements_per_block,num_blocks);
+			(d_elems, d_sums, num_elements,num_elements_per_block,num_blocks,num_blocks2);
+
+		check_order2<<< grid2, threads2, shared_mem_size >>>
+			(d_elems, d_sums, num_elements,num_elements_per_block,num_blocks,num_blocks2);
 }
 
 void
@@ -94,6 +103,9 @@ runTest( int argc, char** argv)
 
 	float* h_data=(float*)malloc(num_elements*sizeof(float));
 
+	int num_blocks2=1;
+	while(num_blocks2<num_blocks) num_blocks2<<=1;
+
 	elem* d_elems;
 	sum* d_sums;
 	  
@@ -123,10 +135,10 @@ runTest( int argc, char** argv)
 	float time=end-start;
 
 	cutilSafeCall( cudaMalloc( (void**) &d_elems, table->n*sizeof(elem)));
-	cutilSafeCall( cudaMalloc( (void**) &d_sums, num_blocks*sizeof(sum)));
+	cutilSafeCall( cudaMalloc( (void**) &d_sums, num_blocks2*sizeof(sum)));
 
 	cutilSafeCall( cudaMemcpy( d_elems, table->elems, table->n*sizeof(elem), cudaMemcpyHostToDevice) );
-	cutilSafeCall( cudaMemcpy( d_sums, table->sums, num_blocks*sizeof(sum), cudaMemcpyHostToDevice) );
+	cutilSafeCall( cudaMemcpy( d_sums, table->sums, num_blocks2*sizeof(sum), cudaMemcpyHostToDevice) );
 
 	dim3  grid(num_blocks, 1, 1); // 
 	dim3  threads(MAX_NUM_OF_THREADS_PER_BLOCK, 1, 1);
@@ -150,7 +162,7 @@ runTest( int argc, char** argv)
 	cutStartTimer(timer);
 	for (unsigned int i = 0; i < numIterations; ++i)
 	{
-		quicksort(grid,threads,shared_mem_size,d_elems,d_sums,num_elements,num_elements_per_block,num_blocks);
+		quicksort(grid,threads,shared_mem_size,d_elems,d_sums,num_elements,num_elements_per_block,num_blocks,num_blocks2);
 	}
 	cudaThreadSynchronize();
 	cutStopTimer(timer);
@@ -162,7 +174,7 @@ runTest( int argc, char** argv)
 	cutilCheckMsg("Kernel execution failed");
 
 	cutilSafeCall(cudaMemcpy( table->elems, d_elems,table->n*sizeof(elem),cudaMemcpyDeviceToHost));
-	cutilSafeCall(cudaMemcpy( table->sums, d_sums,num_blocks*sizeof(sum),cudaMemcpyDeviceToHost));
+	cutilSafeCall(cudaMemcpy( table->sums, d_sums,num_blocks2*sizeof(sum),cudaMemcpyDeviceToHost));
 	for( unsigned int i = 0; i < num_elements; ++i)
 		printf("h_data[%d] = %d\n",i,table->elems[i]);
 	printf("\nAuthor: Paweł Baran. e-mail: shatov33@gmail.com .\n");

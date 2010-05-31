@@ -306,7 +306,14 @@ __device__ int is_sorted2(int1* elems,int n,int thid,int bid,int threads,int* f,
 // n_real - number of elements to be sorted
 // n - number of elements to be sorted in each block
 //__global__ void quicksort_kernel(elem *g_elems, int n_real,int n,int num_blocks){
-__global__ void check_order(elem *g_elems, sum* g_sums, int n_real,int n,int num_blocks){
+__global__ void check_order2(elem *g_elems, sum* g_sums, int n_real,int n,int num_blocks,int num_blocks2){
+
+}
+
+// n_real - number of elements to be sorted
+// n - number of elements to be sorted in each block
+//__global__ void quicksort_kernel(elem *g_elems, int n_real,int n,int num_blocks){
+__global__ void check_order(elem *g_elems, sum* g_sums, int n_real,int n,int num_blocks,int num_blocks2){
 	const int threads=blockDim.x; // number of threads in each block
 	int bid=blockIdx.x; // given block's number
   int thid=threadIdx.x; // thread's number in given block
