@@ -8,6 +8,8 @@
 
 #include "elem.h"
 
+#define MAX_REGISTERS_PER_THREAD 4
+/*
 __device__ float is_sorted(const float* keys,int n){
 	int thid=threadIdx.x;
 	int offset=1;
@@ -218,7 +220,7 @@ __device__ void make_iup(float *iup,float* iup_half,float* seg_flags,float* f,in
 	iup[2*thid]+=iup_half[2*thid];
 	iup[2*thid+1]+=iup_half[2*thid+1];
 }
-/*
+
 __device__ void segmented_prescan2(float* keys,float* seg_flags,int n){
   int thid=threadIdx.x;
 	extern __shared__ float shared[];
@@ -275,6 +277,7 @@ return;
 	__syncthreads();
 }*/
 
+/*
 __device__ int is_sorted2(int1* elems,int n,int thid,int bid,int threads,int* f,elem* g_elems){
 	int unsorted_thread=0;
 	for(int i=0;i<n;++i){
@@ -299,11 +302,13 @@ __device__ int is_sorted2(int1* elems,int n,int thid,int bid,int threads,int* f,
 
 	return f[threads-1];
 }
+*/
 
 
 // n_real - number of elements to be sorted
 // n - number of elements to be sorted in each block
 //__global__ void quicksort_kernel(elem *g_elems, int n_real,int n,int num_blocks){
+/*
 __global__ void check_order2(elem *g_elems, sum* g_sums, int n_real,int n,int num_blocks,int num_blocks2){
   int thid=threadIdx.x; // thread's number in block
 	int threads_num=blockDim.x;
@@ -334,6 +339,7 @@ __global__ void check_order2(elem *g_elems, sum* g_sums, int n_real,int n,int nu
 	if(thid==0)
 		g_elems[0].val=f[threads_num-1];
 }
+*/
 
 // n_real - number of elements to be sorted
 // n - number of elements to be sorted in each block
@@ -342,13 +348,13 @@ __global__ void check_order(elem *g_elems, sum* g_sums, int n_real,int n,int num
 	const int threads=blockDim.x; // number of threads in each block
 	int bid=blockIdx.x; // given block's number
   int thid=threadIdx.x; // thread's number in given block
-	int thread_elems=n/threads; // number of elements in ech thread
-	int begin=bid*n+thid*thread_elems;
-
+//	int thread_elems=n/threads; // number of elements in ech thread
+//	int begin=bid*n+thid*thread_elems;
 	extern __shared__ float absolute_shared[];
 	int* f=(int*)&absolute_shared[0];
+/*
 
-	int1 elems[thread_elems+1];
+	int1 elems[MAX_REGISTERS_PER_THREAD];
 	// przepisanie wartości z globalnej do rejestrów
 	for(int i=0;i<thread_elems;++i){
 		elems[i].x=g_elems[begin+i].val;
@@ -364,7 +370,7 @@ __global__ void check_order(elem *g_elems, sum* g_sums, int n_real,int n,int num
 		g_sums[bid].val=sorted;
 
 //	g_elems[begin]=is_sorted2();
-
+*/
 	/*
 	int i,i1,i2,f1,f2;
 	float temp1,temp2;

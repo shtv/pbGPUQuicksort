@@ -21,8 +21,9 @@
 
 // #define NUM_OF_ELEMENTS_PER_BLOCK 1024 // 2 to the power of k, where k = 1, 2, ...
 // #define NUM_OF_THREADS_PER_BLOCK 256 // k, where k = 1, 2, ...
-#define NUM_OF_ELEMENTS 1024 // k, where k = 1, 2, ...
+#define NUM_OF_ELEMENTS 4 // k, where k = 1, 2, ...
 #define NUM_OF_ARRAYS_PER_BLOCK 6
+#define MAX_SHARED_MEMORY_SIZE 16336
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -53,34 +54,41 @@ int main( int argc, char** argv){
 	cutilExit(argc, argv);
 }
 
-void quicksort(dim3 grid,dim3 threads,int shared_mem_size,elem* d_elems,sum* d_sums,int num_elements,int num_elements_per_block,int num_blocks,int num_blocks2){
-		dim3 grid2(1,1,1);
-		int num_threads2=num_blocks2/2;
-		num_threads2+=num_blocks2 & 1;
-		while(num_threads2>MAX_NUM_OF_THREADS_PER_BLOCK)
-			if(num_threads2 & 1){
-				num_threads2>>=2;
-				++num_threads2;
-			}else
-				num_threads2>>=2;
+void quicksort(dim3 grid,dim3 threads,elem* d_elems,sum* d_sums,int num_elements,int num_elements_per_block,int num_blocks,int num_blocks2){
 
-		dim3 threads2(num_threads2,1,1);
+	int num_threads2=num_blocks2/2;
+	num_threads2+=num_blocks2 & 1;
+	while(num_threads2>MAX_NUM_OF_THREADS_PER_BLOCK)
+		if(num_threads2 & 1){
+			num_threads2>>=2;
+			++num_threads2;
+		}else
+			num_threads2>>=2;
 
-		check_order<<< grid, threads, shared_mem_size >>>
-			(d_elems, d_sums, num_elements,num_elements_per_block,num_blocks,num_blocks2);
+	dim3 grid2(1,1,1);
+	dim3 threads2(num_threads2,1,1);
 
-		check_order2<<< grid2, threads2, shared_mem_size >>>
-			(d_elems, d_sums, num_elements,num_elements_per_block,num_blocks,num_blocks2);
+	const unsigned int shared_mem_size=MAX_SHARED_MEMORY_SIZE;
+
+	printf("mikki: %d %d %d %d \n",num_elements,num_elements_per_block,num_blocks,num_blocks2);
+	check_order<<< grid, threads, shared_mem_size >>>
+		(d_elems, d_sums, num_elements,num_elements_per_block,num_blocks,num_blocks2);
+
+	/*
+	check_order2<<< grid2, threads2, shared_mem_size >>>
+		(d_elems, d_sums, num_elements,num_elements_per_block,num_blocks,num_blocks2);
+		*/
 }
 
 void
 runTest( int argc, char** argv) 
 {
+	/*
 	if( cutCheckCmdLineFlag(argc, (const char**)argv, "device") )
 		cutilDeviceInit(argc, argv);
 	else
 		cudaSetDevice( cutGetMaxGflopsDeviceId() );
-
+*/
 	unsigned int num_elements = NUM_OF_ELEMENTS;
 
 	int num_elements_per_thread=2;
@@ -122,16 +130,22 @@ runTest( int argc, char** argv)
 	{
 		int el = 1000*(rand()/(float)RAND_MAX);
 		if(rand() & 1) el*=-1;
+
+		// UWAGA: ponizej jest kod do testow:
+		if(rand() & 1) el=1;
+		else el=0;
 //		printf("el=%d\n",el);	
 
 		table->elems[i].val = el;
 		table->elems[i].at_place=0;
-		printf("h_data[%d] = %d;\n",i,table->elems[i].val);
+//		printf("h_data[%d] = %d;\n",i,table->elems[i].val);
 	}
 	for(unsigned int i=num_elements;i<n;++i){
 		table->elems[i].val=INT_MAX;
 		table->elems[i].at_place=1;
 	}
+	for(int i=0;i<num_blocks2;++i)
+		table->sums[i].val=0;
 
 	float* reference = (float*) malloc(num_elements*sizeof(float));
  	time_t start,end;
@@ -154,7 +168,7 @@ runTest( int argc, char** argv)
 
 
 	// TO BE CHANGED
-	const unsigned int shared_mem_size=16384;//NUM_OF_ARRAYS_PER_BLOCK*sizeof(float)*num_threads_per_block*2;
+//	const unsigned int shared_mem_size=16384;//NUM_OF_ARRAYS_PER_BLOCK*sizeof(float)*num_threads_per_block*2;
 
 	// make sure there are no CUDA errors before we start
 	cutilCheckMsg("Kernel execution failed");
@@ -168,7 +182,7 @@ runTest( int argc, char** argv)
 	cutStartTimer(timer);
 	for (unsigned int i = 0; i < numIterations; ++i)
 	{
-		quicksort(grid,threads,shared_mem_size,d_elems,d_sums,num_elements,num_elements_per_block,num_blocks,num_blocks2);
+		quicksort(grid,threads,d_elems,d_sums,num_elements,num_elements_per_block,num_blocks,num_blocks2);
 	}
 	cudaThreadSynchronize();
 	cutStopTimer(timer);
@@ -183,7 +197,7 @@ runTest( int argc, char** argv)
 	cutilSafeCall(cudaMemcpy( table->sums, d_sums,num_blocks2*sizeof(sum),cudaMemcpyDeviceToHost));
 /*	for( unsigned int i = 0; i < num_elements; ++i)
 		printf("h_data[%d] = %d\n",i,table->elems[i]);*/
-	printf("h_data[%d] = %d\n",0,table->elems[0]);
+	printf("h_data[%d] = %d\n",0,table->elems[0].val);
 	printf("\nAuthor: Paweł Baran. e-mail: shatov33@gmail.com .\n");
 
 	// cleanup memory
