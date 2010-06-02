@@ -54,7 +54,12 @@ int main( int argc, char** argv){
 	cutilExit(argc, argv);
 }
 
-void quicksort(dim3 grid,dim3 threads,elem* d_elems,sum* d_sums,int num_elements,int num_elements_per_block,int num_blocks,int num_blocks2){
+void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements_per_block,int num_blocks,int num_blocks2){
+
+	dim3  grid(1, 1, 1); // 
+//	dim3  grid(num_blocks, 1, 1); // 
+	dim3  threads(2, 1, 1);
+//	dim3  threads(MAX_NUM_OF_THREADS_PER_BLOCK, 1, 1);
 
 	int num_threads2=num_blocks2/2;
 	num_threads2+=num_blocks2 & 1;
@@ -71,7 +76,7 @@ void quicksort(dim3 grid,dim3 threads,elem* d_elems,sum* d_sums,int num_elements
 	const unsigned int shared_mem_size=MAX_SHARED_MEMORY_SIZE;
 
 	printf("mikki: %d %d %d %d \n",num_elements,num_elements_per_block,num_blocks,num_blocks2);
-	check_order<<< grid, threads, shared_mem_size >>>
+	check_order<<< grid, threads, sizeof(int)*1024 >>>
 		(d_elems, d_sums, num_elements,num_elements_per_block,num_blocks,num_blocks2);
 
 	/*
@@ -138,7 +143,7 @@ runTest( int argc, char** argv)
 
 		table->elems[i].val = el;
 		table->elems[i].at_place=0;
-//		printf("h_data[%d] = %d;\n",i,table->elems[i].val);
+		printf("h_data[%d] = %d;\n",i,table->elems[i].val);
 	}
 	for(unsigned int i=num_elements;i<n;++i){
 		table->elems[i].val=INT_MAX;
@@ -160,9 +165,6 @@ runTest( int argc, char** argv)
 	cutilSafeCall( cudaMemcpy( d_elems, table->elems, table->n*sizeof(elem), cudaMemcpyHostToDevice) );
 	cutilSafeCall( cudaMemcpy( d_sums, table->sums, num_blocks2*sizeof(sum), cudaMemcpyHostToDevice) );
 
-	dim3  grid(num_blocks, 1, 1); // 
-	dim3  threads(MAX_NUM_OF_THREADS_PER_BLOCK, 1, 1);
-
 //	const unsigned int num_threads_per_block=MAX_NUM_OF_THREADS_PER_BLOCK;
 	const unsigned int num_elements_per_block=n/num_blocks;
 
@@ -182,7 +184,7 @@ runTest( int argc, char** argv)
 	cutStartTimer(timer);
 	for (unsigned int i = 0; i < numIterations; ++i)
 	{
-		quicksort(grid,threads,d_elems,d_sums,num_elements,num_elements_per_block,num_blocks,num_blocks2);
+		quicksort(d_elems,d_sums,num_elements,n,num_elements_per_block,num_blocks,num_blocks2);
 	}
 	cudaThreadSynchronize();
 	cutStopTimer(timer);
@@ -195,9 +197,10 @@ runTest( int argc, char** argv)
 
 	cutilSafeCall(cudaMemcpy( table->elems, d_elems,table->n*sizeof(elem),cudaMemcpyDeviceToHost));
 	cutilSafeCall(cudaMemcpy( table->sums, d_sums,num_blocks2*sizeof(sum),cudaMemcpyDeviceToHost));
-/*	for( unsigned int i = 0; i < num_elements; ++i)
-		printf("h_data[%d] = %d\n",i,table->elems[i]);*/
-	printf("h_data[%d] = %d\n",0,table->elems[0].val);
+	for( unsigned int i = 0; i < 2; ++i)
+		printf("thread[%d] = %d\n",i,table->elems[i].at_place);
+	for( unsigned int i = 0; i < num_blocks2; ++i)
+		printf("sum[%d] = %d\n",i,table->sums[i].val);
 	printf("\nAuthor: Paweł Baran. e-mail: shatov33@gmail.com .\n");
 
 	// cleanup memory

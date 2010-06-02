@@ -2,7 +2,7 @@
 #define _ELEM_TO_PBQUICKSORT
 typedef struct{
 	int val;
-	short at_place;
+	int at_place;
 } elem;
 
 typedef struct{

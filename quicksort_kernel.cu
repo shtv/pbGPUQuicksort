@@ -8,7 +8,7 @@
 
 #include "elem.h"
 
-#define MAX_REGISTERS_PER_THREAD 4
+#define MAX_REGISTERS_PER_THREAD 9
 /*
 __device__ float is_sorted(const float* keys,int n){
 	int thid=threadIdx.x;
@@ -277,34 +277,6 @@ return;
 	__syncthreads();
 }*/
 
-/*
-__device__ int is_sorted2(int1* elems,int n,int thid,int bid,int threads,int* f,elem* g_elems){
-	int unsorted_thread=0;
-	for(int i=0;i<n;++i){
-		if(elems[i].x>elems[i+1].x){
-			unsorted_thread=1;
-			break;
-		}
-	}
-
-	f[thid]=unsorted_thread;
-
-	int offset=1;
-	for(int d=threads>>1;d>0;d>>=1){
-		__syncthreads();
-		if(thid<d){
-			int ai=offset*(2*thid+1)-1;
-			int bi=offset*(2*thid+2)-1;
-			f[bi]|=f[ai];
-		}
-		offset<<=1;
-	}
-
-	return f[threads-1];
-}
-*/
-
-
 // n_real - number of elements to be sorted
 // n - number of elements to be sorted in each block
 //__global__ void quicksort_kernel(elem *g_elems, int n_real,int n,int num_blocks){
@@ -345,32 +317,56 @@ __global__ void check_order2(elem *g_elems, sum* g_sums, int n_real,int n,int nu
 // n - number of elements to be sorted in each block
 //__global__ void quicksort_kernel(elem *g_elems, int n_real,int n,int num_blocks){
 __global__ void check_order(elem *g_elems, sum* g_sums, int n_real,int n,int num_blocks,int num_blocks2){
-	const int threads=blockDim.x; // number of threads in each block
-	int bid=blockIdx.x; // given block's number
-  int thid=threadIdx.x; // thread's number in given block
-//	int thread_elems=n/threads; // number of elements in ech thread
-//	int begin=bid*n+thid*thread_elems;
-	extern __shared__ float absolute_shared[];
-	int* f=(int*)&absolute_shared[0];
-/*
+	const int threads_num=blockDim.x; // number of threads in each block
+	const int bid=blockIdx.x; // given block's number
+  const int thid=threadIdx.x; // thread's number in given block
+	const int thread_elems_num=n/threads_num; // number of elements in ech thread
+	const int begin=bid*n+thid*thread_elems_num;
+	extern __shared__ int absolute_shared[];
+	int* shared=(int*)&absolute_shared[0];
 
-	int1 elems[MAX_REGISTERS_PER_THREAD];
+	//	tu niepotrzebne przepisywanie do rejestrow
+	int thread_elems[MAX_REGISTERS_PER_THREAD];
 	// przepisanie wartości z globalnej do rejestrów
-	for(int i=0;i<thread_elems;++i){
-		elems[i].x=g_elems[begin+i].val;
+	for(int i=0;i<thread_elems_num;++i){
+		thread_elems[i]=g_elems[begin+i].val;
 	}
-	if(bid==num_blocks-1 && thid==threads-1)
-		elems[thread_elems].x=INT_MAX;
+	if(bid==num_blocks-1 && thid==threads_num-1)
+		thread_elems[thread_elems_num]=INT_MAX;
 	else
-		elems[thread_elems].x=g_elems[begin+thread_elems].val;
+		thread_elems[thread_elems_num]=g_elems[begin+thread_elems_num].val;
+	//
 
-//	__syncthreads();
-	int sorted=is_sorted2(elems,thread_elems,thid,bid,threads,f,g_elems);
+	int unsorted_thread=0;
+	for(int i=0;i<thread_elems_num-1 && i<MAX_REGISTERS_PER_THREAD-1;++i){
+		if(thread_elems[i]>thread_elems[i+1]){
+			unsorted_thread=1;
+			break;
+		}
+	}
+
+	__syncthreads();
+	shared[thid]=unsorted_thread;
+return;/*
+	g_elems[thid].at_place=unsorted_thread;
+	int offset=1;
+	for(int d=threads_num>>1;d>0;d>>=1){
+		__syncthreads();
+		if(thid<d){
+			int ai=offset*(2*thid+1)-1;
+			int bi=offset*(2*thid+2)-1;
+			f[bi]|=f[ai];
+		}
+		offset<<=1;
+	}
+
 	if(thid==0)
-		g_sums[bid].val=sorted;
+		g_sums[bid].val=f[thread_elems_num-1];
+		*/
+}
 
 //	g_elems[begin]=is_sorted2();
-*/
+
 	/*
 	int i,i1,i2,f1,f2;
 	float temp1,temp2;
@@ -464,6 +460,5 @@ __global__ void check_order(elem *g_elems, sum* g_sums, int n_real,int n,int num
 //	g_odata[2*thid]=data[2*thid];
 //	g_odata[2*thid+1]=data[2*thid+1];
 */
-}
 
 #endif // #ifndef _SCAN_WORKEFFICIENT_KERNEL_H_
