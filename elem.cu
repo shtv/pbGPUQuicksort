@@ -12,9 +12,14 @@ tab* make_tab(int n,int n2){
 
 void free_tab(tab* table){
 	if(table==NULL) return;
-	if(table->elems!=NULL)
-		free(table->elems);
-	if(table->sums!=NULL)
+		printf("check sums !\n");
+	if(table->sums!=NULL){
+		printf("sums isnt null\n");
 		free(table->sums);
+	}
+	if(table->elems!=NULL){
+		printf("elems isnt null\n");
+		free(table->elems);
+	}
 	free(table);
 }

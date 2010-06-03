@@ -36,8 +36,8 @@
 EXECUTABLE	:= pbGPUQuicksort
 CUFILES	:= quicksort.cu
 CU_DEPS := quicksort_kernel.cu
-CCFILES		:= \
-	quicksort_gold.cpp \
+CCFILES		:= 
+#	quicksort_gold.cpp \
 
 ################################################################################
 # Targets and rules

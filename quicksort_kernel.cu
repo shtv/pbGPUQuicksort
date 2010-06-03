@@ -280,22 +280,18 @@ return;
 // n_real - number of elements to be sorted
 // n - number of elements to be sorted in each block
 //__global__ void quicksort_kernel(elem *g_elems, int n_real,int n,int num_blocks){
-/*
-__global__ void check_order2(elem *g_elems, sum* g_sums, int n_real,int n,int num_blocks,int num_blocks2){
-  int thid=threadIdx.x; // thread's number in block
+__global__ void check_order2(sum* g_sums,int num_blocks2){
+	int thid=threadIdx.x; // thread's number in block
 	int threads_num=blockDim.x;
 	int thread_elems_num=num_blocks2/threads_num; // number of elements in ech thread
 
-	extern __shared__ float absolute_shared[];
+	extern __shared__ int absolute_shared[];
 	int* f=(int*)&absolute_shared[0];
 
-//	int1 thread_elems[thread_elems_num];
-	int unsorted_thread=0;
+	f[thid]=0;
 	for(int i=0;i<thread_elems_num;++i)
 		if(g_sums[thid*thread_elems_num+i].val)
-			unsorted_thread=1;
-
-	f[thid]=unsorted_thread;
+			f[thid]=1;
 
 	int offset=1;
 	for(int d=threads_num>>1;d>0;d>>=1){
@@ -308,10 +304,10 @@ __global__ void check_order2(elem *g_elems, sum* g_sums, int n_real,int n,int nu
 		offset<<=1;
 	}
 
+	__syncthreads();
 	if(thid==0)
-		g_elems[0].val=f[threads_num-1];
+		g_sums[1].val=f[threads_num-1];
 }
-*/
 
 // n_real - number of elements to be sorted
 // n - number of elements to be sorted in each block
@@ -328,7 +324,7 @@ __global__ void check_order(elem *g_elems, sum* g_sums, int n_real,int n,int num
 	int predecessor=g_elems[begin].val;
 	int current;
 	for(int i=1;i<=thread_elems_num;++i){
-		if(thid==threads_num-1 && i==thread_elems_num && bid==num_blocks2-1)
+		if(thid==threads_num-1 && i==thread_elems_num && bid==num_blocks-1)
 			current=INT_MAX;
 		else
 			current=g_elems[begin+i].val;
@@ -348,14 +344,10 @@ __global__ void check_order(elem *g_elems, sum* g_sums, int n_real,int n,int num
 		}
 		offset<<=1;
 	}
-	__syncthreads();
-//	f[thid]=thid;
-//	g_elems[thid].val=f[thid];
-	__syncthreads();
 
+	__syncthreads();
 	if(thid==0)
 		g_sums[bid].val=f[threads_num-1];
-	__syncthreads();
 }
 
 //	g_elems[begin]=is_sorted2();

@@ -9,19 +9,10 @@
 #  define NOMINMAX 
 #endif
 
-/*
-#define NUM_OF_ELEMENTS_PER_THREAD 2 // only even and > 0
-#define NUM_OF_SHARED_ARRAY 6
-#define NUM_OF_ELEMENTS 128
-#define NUM_OF_THREADS_PER_BLOCK 512
-*/
-
-#define MAX_NUM_OF_THREADS_PER_BLOCK 2
+#define MAX_NUM_OF_THREADS_PER_BLOCK 512
 #define MAX_NUM_OF_BLOCKS 65536
 
-// #define NUM_OF_ELEMENTS_PER_BLOCK 1024 // 2 to the power of k, where k = 1, 2, ...
-// #define NUM_OF_THREADS_PER_BLOCK 256 // k, where k = 1, 2, ...
-#define NUM_OF_ELEMENTS 8 // k, where k = 1, 2, ...
+#define NUM_OF_ELEMENTS 3276933 // k, where k = 1, 2, ...
 #define NUM_OF_ARRAYS_PER_BLOCK 6
 #define MAX_SHARED_MEMORY_SIZE 16336
 
@@ -43,11 +34,13 @@
 
 void runTest( int argc, char** argv);
 
+/*
 extern "C" 
-unsigned int compare( const char* reference, const float* data, 
+unsigned int compare( const int* reference, const float* data, 
 					  const unsigned int len);
 extern "C" 
-void computeGold( float* reference, float* idata, const unsigned int len);
+void computeGold( int* reference, int* idata, const unsigned int len);
+*/
 
 int main( int argc, char** argv){
 	runTest( argc, argv);
@@ -64,23 +57,22 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 	num_threads2+=num_blocks2 & 1;
 	while(num_threads2>MAX_NUM_OF_THREADS_PER_BLOCK)
 		if(num_threads2 & 1){
-			num_threads2>>=2;
+			num_threads2>>=1;
 			++num_threads2;
 		}else
-			num_threads2>>=2;
+			num_threads2>>=1;
 
 	dim3 grid2(1,1,1);
 	dim3 threads2(num_threads2,1,1);
 
-	const unsigned int shared_mem_size=MAX_SHARED_MEMORY_SIZE;
-
-	printf("mikki: %d %d %d %d \n",num_elements,num_elements_per_block,num_blocks,num_blocks2);
+//	const unsigned int shared_mem_size=MAX_SHARED_MEMORY_SIZE;
+	printf("mikki: %d %d %d %d %d \n",num_threads2,num_elements,num_elements_per_block,num_blocks,num_blocks2);
 	check_order<<< grid, threads, sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 		(d_elems, d_sums, num_elements,num_elements_per_block,num_blocks,num_blocks2);
 
 	/*
-	check_order2<<< grid2, threads2, shared_mem_size >>>
-		(d_elems, d_sums, num_elements,num_elements_per_block,num_blocks,num_blocks2);
+	check_order2<<< grid2, threads2,  sizeof(int)*num_threads2 >>>
+		(d_sums,num_blocks2);
 		*/
 }
 
@@ -112,17 +104,16 @@ runTest( int argc, char** argv)
 		num_blocks+=1;
 
 	const unsigned int n = num_blocks*MAX_NUM_OF_THREADS_PER_BLOCK*num_elements_per_thread;
-
+printf("n==%d : TRUE\n",n);
 	unsigned int timer;
 	cutilCheckError( cutCreateTimer(&timer));
 
 	tab* table;
-	table=make_tab(n,num_blocks);
-
-	float* h_data=(float*)malloc(num_elements*sizeof(float));
 
 	int num_blocks2=1;
 	while(num_blocks2<num_blocks) num_blocks2<<=1;
+	
+	table=make_tab(n,num_blocks2);
 
 	elem* d_elems;
 	sum* d_sums;
@@ -130,28 +121,24 @@ runTest( int argc, char** argv)
 	// initialize the input data on the host to be integer values
 	// between 0 and 1000
 	srand(time(NULL));
-	table->elems[0].val=0;
-	table->elems[1].val=0;
-	table->elems[2].val=0;
-	table->elems[3].val=0;
-	table->elems[4].val=0;
-	table->elems[5].val=1;
-	table->elems[6].val=0;
-	table->elems[7].val=0;
+	printf("elems(n=%d) to be sorted:\n",num_elements);
 	for( unsigned int i = 0; i < num_elements; ++i) 
 	{
-		int el = 1000*(rand()/(float)RAND_MAX);
-		if(rand() & 1) el*=-1;
+		int elval = 1000*(rand()/(float)RAND_MAX);
+		if(rand() & 1) elval*=-1;
 
 		// UWAGA: ponizej jest kod do testow:
-		if(rand() & 1) el=1;
-		else el=0;
+		if(rand() & 1) elval=1;
+		else elval=0;
 //		printf("el=%d\n",el);	
 
-		table->elems[i].val = el;
+	//	h_data[i] = el;
+		table->elems[i].val = 0;//elval;
 		table->elems[i].at_place=0;
-		printf("h_data[%d] = %d;\n",i,table->elems[i].val);
+//		printf(" %d ",table->elems[i].val);
 	}
+	printf("from %d to %d \n",num_elements,n);
+	printf("... %d \n",table->elems[num_elements-1].val);
 	for(unsigned int i=num_elements;i<n;++i){
 		table->elems[i].val=INT_MAX;
 		table->elems[i].at_place=1;
@@ -159,16 +146,8 @@ runTest( int argc, char** argv)
 	for(int i=0;i<num_blocks2;++i)
 		table->sums[i].val=0;
 
-	float* reference = (float*) malloc(num_elements*sizeof(float));
- 	time_t start,end;
-	time(&start);
-	computeGold( reference, h_data, num_elements);
-	time(&end);
-	float time=end-start;
-
 	cutilSafeCall( cudaMalloc( (void**) &d_elems, table->n*sizeof(elem)));
 	cutilSafeCall( cudaMalloc( (void**) &d_sums, num_blocks2*sizeof(sum)));
-
 	cutilSafeCall( cudaMemcpy( d_elems, table->elems, table->n*sizeof(elem), cudaMemcpyHostToDevice) );
 	cutilSafeCall( cudaMemcpy( d_sums, table->sums, num_blocks2*sizeof(sum), cudaMemcpyHostToDevice) );
 
@@ -186,17 +165,16 @@ runTest( int argc, char** argv)
   
 	unsigned int numIterations = 1;
 	
+	cutilCheckError(cutStartTimer(timer));
 	printf("pbGPUQuicksort with params:\n- blocks=%d,\n- elements=%d,\n- elements2thread=%d\n"
 			,num_blocks,num_elements,num_elements_per_thread);
-	cutStartTimer(timer);
 	for (unsigned int i = 0; i < numIterations; ++i)
 	{
 		quicksort(d_elems,d_sums,num_elements,n,num_elements_per_block,num_blocks,num_blocks2);
 	}
 	cudaThreadSynchronize();
-	cutStopTimer(timer);
 	printf("Average time: %f ms\n\n", cutGetTimerValue(timer) / numIterations);
-	printf("CPU time: %f ms\n\n", time);
+//	printf("CPU time: %f ms\n\n", time);
 	cutResetTimer(timer);
 
 	// check for any errors
@@ -204,19 +182,26 @@ runTest( int argc, char** argv)
 
 	cutilSafeCall(cudaMemcpy( table->elems, d_elems,table->n*sizeof(elem),cudaMemcpyDeviceToHost));
 	cutilSafeCall(cudaMemcpy( table->sums, d_sums,num_blocks2*sizeof(sum),cudaMemcpyDeviceToHost));
-	for( unsigned int i = 0; i < num_elements; ++i)
-		printf("thread[%d] = %d\n",i,table->elems[i].val);
+//	for( unsigned int i = 0; i < num_elements; ++i)
+//		printf("thread[%d] = %d\n",i,table->elems[i].val);
+	/*
 	for( unsigned int i = 0; i < num_blocks2; ++i)
 		printf("sum[%d] = %d\n",i,table->sums[i].val);
+		*/
+	printf("sum[%d] = %d\n",0,table->sums[0].val);
 	printf("\nAuthor: Paweł Baran. e-mail: shatov33@gmail.com .\n");
 
 	// cleanup memory
-	free( h_data);
-	free( reference);
+	printf("a3\n");
 	cutilSafeCall(cudaFree(d_elems));
+	printf("a4\n");
 	cutilSafeCall(cudaFree(d_sums));
-	free_tab(table);
+	printf("a5\n");
+//	free_tab(table);
+	printf("a6\n");
+	cutilCheckError(cutStopTimer(timer));
 	cutilCheckError(cutDeleteTimer(timer));
+	printf("a7\n");
 
 	cudaThreadExit();
 }
