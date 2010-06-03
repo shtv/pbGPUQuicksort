@@ -12,7 +12,7 @@
 #define MAX_NUM_OF_THREADS_PER_BLOCK 512
 #define MAX_NUM_OF_BLOCKS 65536
 
-#define NUM_OF_ELEMENTS 3276933 // k, where k = 1, 2, ...
+#define NUM_OF_ELEMENTS 6 // k, where k = 1, 2, ...
 #define NUM_OF_ARRAYS_PER_BLOCK 6
 #define MAX_SHARED_MEMORY_SIZE 16336
 
@@ -70,10 +70,8 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 	check_order<<< grid, threads, sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 		(d_elems, d_sums, num_elements,num_elements_per_block,num_blocks,num_blocks2);
 
-	/*
 	check_order2<<< grid2, threads2,  sizeof(int)*num_threads2 >>>
 		(d_sums,num_blocks2);
-		*/
 }
 
 void
@@ -104,7 +102,6 @@ runTest( int argc, char** argv)
 		num_blocks+=1;
 
 	const unsigned int n = num_blocks*MAX_NUM_OF_THREADS_PER_BLOCK*num_elements_per_thread;
-printf("n==%d : TRUE\n",n);
 	unsigned int timer;
 	cutilCheckError( cutCreateTimer(&timer));
 
@@ -133,12 +130,10 @@ printf("n==%d : TRUE\n",n);
 //		printf("el=%d\n",el);	
 
 	//	h_data[i] = el;
-		table->elems[i].val = 0;//elval;
+		table->elems[i].val = elval;
 		table->elems[i].at_place=0;
-//		printf(" %d ",table->elems[i].val);
+		printf(" %d ",table->elems[i].val);
 	}
-	printf("from %d to %d \n",num_elements,n);
-	printf("... %d \n",table->elems[num_elements-1].val);
 	for(unsigned int i=num_elements;i<n;++i){
 		table->elems[i].val=INT_MAX;
 		table->elems[i].at_place=1;
