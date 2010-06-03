@@ -16,12 +16,12 @@
 #define NUM_OF_THREADS_PER_BLOCK 512
 */
 
-#define MAX_NUM_OF_THREADS_PER_BLOCK 512
-#define MAX_NUM_OF_BLOCKS 512
+#define MAX_NUM_OF_THREADS_PER_BLOCK 2
+#define MAX_NUM_OF_BLOCKS 65536
 
 // #define NUM_OF_ELEMENTS_PER_BLOCK 1024 // 2 to the power of k, where k = 1, 2, ...
 // #define NUM_OF_THREADS_PER_BLOCK 256 // k, where k = 1, 2, ...
-#define NUM_OF_ELEMENTS 4 // k, where k = 1, 2, ...
+#define NUM_OF_ELEMENTS 8 // k, where k = 1, 2, ...
 #define NUM_OF_ARRAYS_PER_BLOCK 6
 #define MAX_SHARED_MEMORY_SIZE 16336
 
@@ -56,10 +56,9 @@ int main( int argc, char** argv){
 
 void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements_per_block,int num_blocks,int num_blocks2){
 
-	dim3  grid(1, 1, 1); // 
-//	dim3  grid(num_blocks, 1, 1); // 
-	dim3  threads(2, 1, 1);
-//	dim3  threads(MAX_NUM_OF_THREADS_PER_BLOCK, 1, 1);
+	dim3  grid(num_blocks, 1, 1); // 
+//	dim3  threads(num_elements/2, 1, 1);
+	dim3  threads(MAX_NUM_OF_THREADS_PER_BLOCK, 1, 1);
 
 	int num_threads2=num_blocks2/2;
 	num_threads2+=num_blocks2 & 1;
@@ -76,7 +75,7 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 	const unsigned int shared_mem_size=MAX_SHARED_MEMORY_SIZE;
 
 	printf("mikki: %d %d %d %d \n",num_elements,num_elements_per_block,num_blocks,num_blocks2);
-	check_order<<< grid, threads, sizeof(int)*1024 >>>
+	check_order<<< grid, threads, sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 		(d_elems, d_sums, num_elements,num_elements_per_block,num_blocks,num_blocks2);
 
 	/*
@@ -131,6 +130,14 @@ runTest( int argc, char** argv)
 	// initialize the input data on the host to be integer values
 	// between 0 and 1000
 	srand(time(NULL));
+	table->elems[0].val=0;
+	table->elems[1].val=0;
+	table->elems[2].val=0;
+	table->elems[3].val=0;
+	table->elems[4].val=0;
+	table->elems[5].val=1;
+	table->elems[6].val=0;
+	table->elems[7].val=0;
 	for( unsigned int i = 0; i < num_elements; ++i) 
 	{
 		int el = 1000*(rand()/(float)RAND_MAX);
@@ -197,8 +204,8 @@ runTest( int argc, char** argv)
 
 	cutilSafeCall(cudaMemcpy( table->elems, d_elems,table->n*sizeof(elem),cudaMemcpyDeviceToHost));
 	cutilSafeCall(cudaMemcpy( table->sums, d_sums,num_blocks2*sizeof(sum),cudaMemcpyDeviceToHost));
-	for( unsigned int i = 0; i < 2; ++i)
-		printf("thread[%d] = %d\n",i,table->elems[i].at_place);
+	for( unsigned int i = 0; i < num_elements; ++i)
+		printf("thread[%d] = %d\n",i,table->elems[i].val);
 	for( unsigned int i = 0; i < num_blocks2; ++i)
 		printf("sum[%d] = %d\n",i,table->sums[i].val);
 	printf("\nAuthor: Paweł Baran. e-mail: shatov33@gmail.com .\n");
