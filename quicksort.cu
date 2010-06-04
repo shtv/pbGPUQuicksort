@@ -47,6 +47,33 @@ int main( int argc, char** argv){
 	cutilExit(argc, argv);
 }
 
+void down_sweep_for_sum(sum* d_sums,int num_sums,int n){
+	int blocks_num=num_sums/(MAX_NUM_OF_THREADS_PER_BLOCK*2);
+
+	if(MAX_NUM_OF_THREADS_PER_BLOCK*2*blocks_num!=num_sums)
+		blocks_num+=1;
+
+	dim3 grid(blocks_num,1,1);
+	int threads_num;
+
+	if(blocks_num==1)
+		threads_num=n/2;
+	else
+		threads_num=MAX_NUM_OF_THREADS_PER_BLOCK;
+
+	if(blocks_num>1){
+		dim3 grid2(1,1,1);
+		dim3 threads2(blocks_num/2,1,1);
+		int offset=MAX_NUM_OF_THREADS_PER_BLOCK*2;
+		printf("2:offset=%d threads to sum of sums = %d \n",offset,threads2.x);
+		accumulate_sum_of_sums2<<<grid2,threads2,6*sizeof(int)*threads2.x>>> (d_sums,2,offset);
+	}
+
+	dim3 threads(threads_num,1,1);
+	printf("second of the accumulating functions: blocks=%d threads in each one=%d\n",blocks_num,threads_num);
+	accumulate_sums2<<<grid,threads,4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK>>> (d_sums,2);
+}
+
 void up_sweep_for_sum(sum* d_sums,int num_sums,int n){
 	int blocks_num=num_sums/(MAX_NUM_OF_THREADS_PER_BLOCK*2);
 
@@ -66,8 +93,6 @@ void up_sweep_for_sum(sum* d_sums,int num_sums,int n){
 	accumulate_sums<<<grid,threads,4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK>>> (d_sums,2);
 
 	if(blocks_num==1) return;
-
-	printf("nie powinienem tu być... \n");
 
 	dim3 grid2(1,1,1);
 	dim3 threads2(blocks_num/2,1,1);
@@ -113,6 +138,8 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK);
 
 	up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+
+	down_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
 }
 
 void
