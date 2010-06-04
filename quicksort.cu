@@ -9,7 +9,7 @@
 #  define NOMINMAX 
 #endif
 
-#define MAX_NUM_OF_THREADS_PER_BLOCK 1
+#define MAX_NUM_OF_THREADS_PER_BLOCK 512
 #define MAX_NUM_OF_BLOCKS 65536
 
 #define NUM_OF_ELEMENTS 8 // k, where k = 1, 2, ...
@@ -195,11 +195,13 @@ runTest( int argc, char** argv)
 		int elval = 1000*(rand()/(float)RAND_MAX);
 		if(rand() & 1) elval*=-1;
 
+		/*
 		// UWAGA: ponizej jest kod do testow:
 		if(rand() & 1) elval=1;
 		else elval=0;
+		*/
 
-		table->elems[i].val = 0;//elval;
+		table->elems[i].val = elval;
 		table->elems[i].at_place=0;
 		table->elems[i].seg_flag2=0;
 		table->elems[i].f=0;
@@ -208,7 +210,6 @@ runTest( int argc, char** argv)
 	}
 	printf(" ;\n");
 	table->elems[0].seg_flag2=1;
-	table->elems[0].val=1;
 	for(unsigned int i=num_elements;i<n;++i){
 		table->elems[i].val=INT_MAX;
 		table->elems[i].at_place=1;
@@ -256,7 +257,7 @@ runTest( int argc, char** argv)
 
 	cutilSafeCall(cudaMemcpy( table->elems, d_elems,table->n*sizeof(elem),cudaMemcpyDeviceToHost));
 	cutilSafeCall(cudaMemcpy( table->sums, d_sums,num_blocks2*sizeof(sum),cudaMemcpyDeviceToHost));
-	for( unsigned int i = 0; i < n; ++i)
+	for( unsigned int i = 0; i < num_elements; ++i)
 		printf("pivot[%d] = %d flag=%d\n",i,table->elems[i].pivot,table->elems[i].seg_flag2);
 	for( unsigned int i = 0; i < num_blocks2; ++i)
 		printf("sum[%d] = %d seg_flag=%d\n",i,table->sums[i].val,table->sums[i].seg_flag);

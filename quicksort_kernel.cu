@@ -458,8 +458,10 @@ __global__ void make_pivots2(elem *g_elems, sum* g_sums, int thread_elems_num,in
 	__syncthreads();
 
 	for(int i=0;i<thread_elems_num;++i){
-		g_elems[begin+i].seg_flag2=f[begin2+i];
-		g_elems[begin+i].pivot=val[begin2+i];
+		if(g_elems[begin+i].seg_flag2)
+			g_elems[begin+i].pivot=g_elems[begin+i].val;
+		else
+			g_elems[begin+i].pivot=val[begin2+i];
 	}
 
 	if(thid==threads_num-1 && bid==num_blocks2-1 && !last_flag)
