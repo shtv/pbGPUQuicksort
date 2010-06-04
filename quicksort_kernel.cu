@@ -283,7 +283,7 @@ return;
 	__syncthreads();
 }*/
 
-__device__ void segmented_scan(int* val,int* f,int thread_elems_num){
+__device__ void segmented_scan_up(int* val,int* f,int thread_elems_num){
 	const int threads_num=blockDim.x; // number of threads in each block
   const int thid=threadIdx.x; // thread's number in given block
 	
@@ -316,7 +316,7 @@ __global__ void accumulate_sum_of_sums(sum* g_sums, int thread_elems_num, int of
 		val[begin2+i]=g_sums[offset*(begin2+i+1)-1].val;
 	}
 	__syncthreads();
-	segmented_scan(val,f,thread_elems_num);
+	segmented_scan_up(val,f,thread_elems_num);
 	__syncthreads();
 	for(int i=0;i<thread_elems_num;++i){
 		g_sums[offset*(begin2+i+1)-1].seg_flag=f[begin2+i];
@@ -341,7 +341,7 @@ __global__ void accumulate_sums(sum* g_sums, int thread_elems_num){
 		val[begin2+i]=g_sums[begin+i].val;
 	}
 	__syncthreads();
-	segmented_scan(val,f,thread_elems_num);
+	segmented_scan_up(val,f,thread_elems_num);
 	__syncthreads();
 
 	for(int i=0;i<thread_elems_num;++i){
@@ -372,7 +372,7 @@ __global__ void make_pivots(elem *g_elems, sum* g_sums, int thread_elems_num){
 			val[begin2+i]=0;
 	}
 	__syncthreads();
-	segmented_scan(val,f,thread_elems_num);
+	segmented_scan_up(val,f,thread_elems_num);
 	__syncthreads();
 	for(int i=0;i<thread_elems_num;++i){
 		g_elems[begin+i].seg_flag=f[begin2+i];

@@ -12,7 +12,7 @@
 #define MAX_NUM_OF_THREADS_PER_BLOCK 1
 #define MAX_NUM_OF_BLOCKS 65536
 
-#define NUM_OF_ELEMENTS 9 // k, where k = 1, 2, ...
+#define NUM_OF_ELEMENTS 8 // k, where k = 1, 2, ...
 #define NUM_OF_ARRAYS_PER_BLOCK 6
 #define MAX_SHARED_MEMORY_SIZE 
 
@@ -47,7 +47,7 @@ int main( int argc, char** argv){
 	cutilExit(argc, argv);
 }
 
-void up_sweep_for_sum(sum* d_sums,int num_sums){
+void up_sweep_for_sum(sum* d_sums,int num_sums,int n){
 	int blocks_num=num_sums/(MAX_NUM_OF_THREADS_PER_BLOCK*2);
 
 	if(MAX_NUM_OF_THREADS_PER_BLOCK*2*blocks_num!=num_sums)
@@ -57,12 +57,12 @@ void up_sweep_for_sum(sum* d_sums,int num_sums){
 	int threads_num;
 
 	if(blocks_num==1)
-		threads_num=num_sums/2;
+		threads_num=n/2;
 	else
 		threads_num=MAX_NUM_OF_THREADS_PER_BLOCK;
 
 	dim3 threads(threads_num,1,1);
-
+	printf("first of the accumulating functions: blocks=%d threads in each one=%d\n",blocks_num,threads_num);
 	accumulate_sums<<<grid,threads,4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK>>> (d_sums,2);
 
 	if(blocks_num==1) return;
@@ -112,7 +112,7 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 	make_pivots<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK);
 
-	up_sweep_for_sum(d_sums,num_blocks2);
+	up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
 }
 
 void
