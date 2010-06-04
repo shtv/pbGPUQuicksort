@@ -71,7 +71,7 @@ void down_sweep_for_sum(sum* d_sums,int num_sums,int n){
 
 	dim3 threads(threads_num,1,1);
 	printf("second of the accumulating functions: blocks=%d threads in each one=%d\n",blocks_num,threads_num);
-	accumulate_sums2<<<grid,threads,4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK>>> (d_sums,2);
+	accumulate_sums2<<<grid,threads,6*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK>>> (d_sums,2);
 }
 
 void up_sweep_for_sum(sum* d_sums,int num_sums,int n){
@@ -140,6 +140,9 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 	up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
 
 	down_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+
+	make_pivots2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
+		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK);
 }
 
 void
@@ -254,7 +257,7 @@ runTest( int argc, char** argv)
 	cutilSafeCall(cudaMemcpy( table->elems, d_elems,table->n*sizeof(elem),cudaMemcpyDeviceToHost));
 	cutilSafeCall(cudaMemcpy( table->sums, d_sums,num_blocks2*sizeof(sum),cudaMemcpyDeviceToHost));
 	for( unsigned int i = 0; i < n; ++i)
-		printf("pivot[%d] = %d flag=%d\n",i,table->elems[i].pivot,table->elems[i].seg_flag);
+		printf("pivot[%d] = %d flag=%d\n",i,table->elems[i].pivot,table->elems[i].seg_flag2);
 	for( unsigned int i = 0; i < num_blocks2; ++i)
 		printf("sum[%d] = %d seg_flag=%d\n",i,table->sums[i].val,table->sums[i].seg_flag);
 //	printf("sum[%d] = %d\n",0,table->sums[0].val);

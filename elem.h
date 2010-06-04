@@ -12,6 +12,7 @@ typedef struct{
 typedef struct{
 	int val;
 	short seg_flag;
+	short next_seg_flag;
 } sum;
 
 typedef struct{
