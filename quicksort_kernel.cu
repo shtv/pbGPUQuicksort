@@ -287,9 +287,6 @@ __device__ void segmented_scan_down(int* val,int* f,int* f2,int thread_elems_num
 	const int threads_num=blockDim.x; // number of threads in each block
   const int thid=threadIdx.x; // thread's number in given block
 	
-	if(f2==NULL)
-		f2=f;
-
 	int offset=threads_num;
 	for(int d=1;d<=threads_num;d<<=1){
 		__syncthreads();
@@ -298,7 +295,7 @@ __device__ void segmented_scan_down(int* val,int* f,int* f2,int thread_elems_num
 			int bi=offset*(2*thid+2)-1;
 			int t=val[ai];
 			val[ai]=val[bi];
-			if(f2[ai])
+			if((f2==NULL && f[ai+1]) || (f2!=NULL && f2[ai]))
 				val[bi]=0;
 			else if(f[ai])
 				val[bi]=0+t;
@@ -431,13 +428,14 @@ __global__ void accumulate_sums(sum* g_sums, int thread_elems_num){
 	}
 }
 
-__global__ void make_pivots2(elem *g_elems, sum* g_sums, int thread_elems_num){
+__global__ void make_pivots2(elem *g_elems, sum* g_sums, int thread_elems_num,int num_blocks2){
 	const int threads_num=blockDim.x; // number of threads in each block
 	const int bid=blockIdx.x; // given block's number
   const int thid=threadIdx.x; // thread's number in given block
 	const int n=threads_num*thread_elems_num;
 	const int begin=bid*n+thid*thread_elems_num;
 	const int begin2=thid*thread_elems_num;
+	int last_flag=0;
 
 	extern __shared__ int absolute_shared[];
 	int* f=(int*)&absolute_shared[0];
@@ -447,6 +445,8 @@ __global__ void make_pivots2(elem *g_elems, sum* g_sums, int thread_elems_num){
 		f[begin2+i]=g_elems[begin+i].seg_flag;
 		val[begin2+i]=g_elems[begin+i].pivot;
 	}
+	last_flag=f[begin2+thread_elems_num-1];
+
 	// zrzut z sumy bloków:
 	if(thid==0){
 		f[n-1]=g_sums[bid].seg_flag;
@@ -454,13 +454,27 @@ __global__ void make_pivots2(elem *g_elems, sum* g_sums, int thread_elems_num){
 	}
 
 	__syncthreads();
-//	segmented_scan_down(val,f,NULL,thread_elems_num);
+	segmented_scan_down(val,f,NULL,thread_elems_num);
 	__syncthreads();
 
 	for(int i=0;i<thread_elems_num;++i){
 		g_elems[begin+i].seg_flag2=f[begin2+i];
 		g_elems[begin+i].pivot=val[begin2+i];
 	}
+
+	if(thid==threads_num-1 && bid==num_blocks2-1 && !last_flag)
+		g_elems[begin+thread_elems_num-1].pivot=val[begin2+thread_elems_num-2];
+
+	/* ze starego projektu:
+	// little correction ;-)
+	if(thid==(n/2-1) && !seg_flags[n-1])
+		keys[n-1]=data[n-2]+keys[2*thid];
+	else if(!seg_flags[2*thid+1])
+		keys[2*thid+1]=data[2*thid+1];
+	else
+		keys[2*thid+1]=0;
+	keys[2*thid]=data[2*thid];
+	*/
 }
 
 // n_real - number of elements to be sorted

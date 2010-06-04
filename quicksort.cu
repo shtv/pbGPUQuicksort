@@ -142,7 +142,7 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 	down_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
 
 	make_pivots2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
-		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK);
+		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2);
 }
 
 void
