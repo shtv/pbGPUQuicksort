@@ -9,6 +9,12 @@
 #include "elem.h"
 
 #define MAX_REGISTERS_PER_THREAD 4
+
+#define NORMAL 0
+#define PIVOTS 1
+#define KEYS 2
+#define SEG_FLAGS 3
+
 /*
 __device__ float is_sorted(const float* keys,int n){
 	int thid=threadIdx.x;
@@ -276,6 +282,107 @@ return;
 		keys[2*thid+1]=data[2*thid+1];
 	__syncthreads();
 }*/
+
+__device__ void segmented_scan(int* val,int* f,int thread_elems_num){
+	const int threads_num=blockDim.x; // number of threads in each block
+  const int thid=threadIdx.x; // thread's number in given block
+	
+	int offset=1;
+	for(int d=threads_num;d>0;d>>=1){
+		__syncthreads();
+		if(thid<d){
+			int ai=offset*(2*thid+1)-1;
+			int bi=offset*(2*thid+2)-1;
+			if(!f[bi]){
+				val[bi]+=val[ai];
+				f[bi]=f[ai];
+			}
+		}
+		offset<<=1;
+	}
+}
+
+__global__ void accumulate_sum_of_sums(sum* g_sums, int thread_elems_num, int offset){
+	const int threads_num=blockDim.x; // number of threads in each block
+	const int thid=threadIdx.x; // thread's number in given block
+	const int begin2=thid*thread_elems_num;
+
+	extern __shared__ int absolute_shared[];
+	int* f=(int*)&absolute_shared[0];
+	int* val=(int*)&absolute_shared[threads_num*thread_elems_num];
+
+	for(int i=0;i<thread_elems_num;++i){
+		f[begin2+i]=g_sums[offset*(begin2+i+1)-1].seg_flag;
+		val[begin2+i]=g_sums[offset*(begin2+i+1)-1].val;
+	}
+	__syncthreads();
+	segmented_scan(val,f,thread_elems_num);
+	__syncthreads();
+	for(int i=0;i<thread_elems_num;++i){
+		g_sums[offset*(begin2+i+1)-1].seg_flag=f[begin2+i];
+		g_sums[offset*(begin2+i+1)-1].val=val[begin2+i];
+	}
+}
+
+__global__ void accumulate_sums(sum* g_sums, int thread_elems_num){
+	const int threads_num=blockDim.x; // number of threads in each block
+	const int bid=blockIdx.x; // given block's number
+  const int thid=threadIdx.x; // thread's number in given block
+	const int n=threads_num*thread_elems_num;
+	const int begin=bid*n+thid*thread_elems_num;
+	const int begin2=thid*thread_elems_num;
+
+	extern __shared__ int absolute_shared[];
+	int* f=(int*)&absolute_shared[0];
+	int* val=(int*)&absolute_shared[threads_num*thread_elems_num];
+
+	for(int i=0;i<thread_elems_num;++i){
+		f[begin2+i]=g_sums[begin+i].seg_flag;
+		val[begin2+i]=g_sums[begin+i].val;
+	}
+	__syncthreads();
+	segmented_scan(val,f,thread_elems_num);
+	__syncthreads();
+
+	for(int i=0;i<thread_elems_num;++i){
+		g_sums[begin+i].seg_flag=f[begin2+i];
+		g_sums[begin+i].val=val[begin2+i];
+	}
+}
+
+// n_real - number of elements to be sorted
+// n - number of elements to be sorted in each block
+__global__ void make_pivots(elem *g_elems, sum* g_sums, int thread_elems_num){
+	const int threads_num=blockDim.x; // number of threads in each block
+	const int bid=blockIdx.x; // given block's number
+  const int thid=threadIdx.x; // thread's number in given block
+	const int n=threads_num*thread_elems_num;
+	const int begin=bid*n+thid*thread_elems_num;
+	const int begin2=thid*thread_elems_num;
+
+	extern __shared__ int absolute_shared[];
+	int* f=(int*)&absolute_shared[0];
+	int* val=(int*)&absolute_shared[threads_num*thread_elems_num];
+
+	for(int i=0;i<thread_elems_num;++i){
+		f[begin2+i]=g_elems[begin+i].seg_flag2;
+		if(f[begin2+i])
+			val[begin2+i]=g_elems[begin+i].val;
+		else
+			val[begin2+i]=0;
+	}
+	__syncthreads();
+	segmented_scan(val,f,thread_elems_num);
+	__syncthreads();
+	for(int i=0;i<thread_elems_num;++i){
+		g_elems[begin+i].seg_flag=f[begin2+i];
+		g_elems[begin+i].pivot=val[begin2+i];
+	}
+	if(thid==0){	// do sprawdzenia!
+		g_sums[bid].val=val[n-1];
+		g_sums[bid].seg_flag=f[n-1];
+	}
+}
 
 // n_real - number of elements to be sorted
 // n - number of elements to be sorted in each block

@@ -3,10 +3,15 @@
 typedef struct{
 	int val;
 	int at_place;
+	int pivot;
+	short seg_flag;
+	short seg_flag2;
+	short f;
 } elem;
 
 typedef struct{
 	int val;
+	short seg_flag;
 } sum;
 
 typedef struct{
