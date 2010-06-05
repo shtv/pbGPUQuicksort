@@ -12,7 +12,7 @@
 #define MAX_NUM_OF_THREADS_PER_BLOCK 512
 #define MAX_NUM_OF_BLOCKS 65536
 
-#define NUM_OF_ELEMENTS 8 // k, where k = 1, 2, ...
+#define NUM_OF_ELEMENTS 144097 // k, where k = 1, 2, ...
 #define NUM_OF_ARRAYS_PER_BLOCK 6
 #define MAX_SHARED_MEMORY_SIZE 
 
@@ -67,11 +67,13 @@ void down_sweep_for_sum(sum* d_sums,int num_sums,int n){
 		int offset=MAX_NUM_OF_THREADS_PER_BLOCK*2;
 		printf("2:offset=%d threads to sum of sums = %d \n",offset,threads2.x);
 		accumulate_sum_of_sums2<<<grid2,threads2,6*sizeof(int)*threads2.x>>> (d_sums,2,offset);
+		cutilCheckMsg("accumulate_sum_of_sums2");
 	}
 
 	dim3 threads(threads_num,1,1);
 	printf("second of the accumulating functions: blocks=%d threads in each one=%d\n",blocks_num,threads_num);
 	accumulate_sums2<<<grid,threads,6*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK>>> (d_sums,2);
+	cutilCheckMsg("accumulate_sums2");
 }
 
 void up_sweep_for_sum(sum* d_sums,int num_sums,int n){
@@ -91,6 +93,7 @@ void up_sweep_for_sum(sum* d_sums,int num_sums,int n){
 	dim3 threads(threads_num,1,1);
 	printf("first of the accumulating functions: blocks=%d threads in each one=%d\n",blocks_num,threads_num);
 	accumulate_sums<<<grid,threads,4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK>>> (d_sums,2);
+	cutilCheckMsg("accumulate_sums");
 
 	if(blocks_num==1) return;
 
@@ -99,6 +102,7 @@ void up_sweep_for_sum(sum* d_sums,int num_sums,int n){
 	int offset=MAX_NUM_OF_THREADS_PER_BLOCK*2;
 	printf("offset=%d threads to sum of sums = %d \n",offset,threads2.x);
 	accumulate_sum_of_sums<<<grid2,threads2,4*sizeof(int)*threads2.x>>> (d_sums,2,offset);
+	cutilCheckMsg("accumulate_sum_of_sums");
 }
 
 void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements_per_block,int num_blocks,int num_blocks2){
@@ -140,6 +144,7 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 	up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
 
 	down_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+	cutilCheckMsg("down_sweep");
 
 	make_pivots2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2);

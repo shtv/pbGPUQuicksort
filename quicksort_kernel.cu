@@ -445,8 +445,10 @@ __global__ void make_pivots2(elem *g_elems, sum* g_sums, int thread_elems_num,in
 		f[begin2+i]=g_elems[begin+i].seg_flag;
 		val[begin2+i]=g_elems[begin+i].pivot;
 	}
+	__syncthreads();
 	last_flag=f[begin2+thread_elems_num-1];
 
+	__syncthreads();
 	// zrzut z sumy bloków:
 	if(thid==0){
 		f[n-1]=g_sums[bid].seg_flag;
@@ -464,6 +466,7 @@ __global__ void make_pivots2(elem *g_elems, sum* g_sums, int thread_elems_num,in
 			g_elems[begin+i].pivot=val[begin2+i];
 	}
 
+	__syncthreads();
 	if(thid==threads_num-1 && bid==num_blocks2-1 && !last_flag)
 		g_elems[begin+thread_elems_num-1].pivot=val[begin2+thread_elems_num-2];
 
