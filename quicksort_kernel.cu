@@ -504,9 +504,9 @@ __global__ void make_iup1s2(elem *g_elems, sum* g_sums, int thread_elems_num,int
 
 	for(int i=0;i<thread_elems_num;++i){
 		if(g_elems[begin+i].seg_flag2)
-			g_elems[begin+i].idown=0;
+			g_elems[begin+i].iup1=0;
 		else
-			g_elems[begin+i].idown=val[begin2+i];
+			g_elems[begin+i].iup1=val[begin2+i];
 	}
 
 	__syncthreads();
