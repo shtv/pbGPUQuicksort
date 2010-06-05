@@ -159,6 +159,17 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 
 	make_offsets2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2);
+
+	make_idowns<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
+		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK);
+
+	up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+
+	down_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+	cutilCheckMsg("down_sweep");
+
+	make_idowns2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
+		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2);
 }
 
 void
@@ -218,7 +229,6 @@ runTest( int argc, char** argv)
 		*/
 
 		table->elems[i].val = elval;
-		table->elems[i].at_place=0;
 		table->elems[i].seg_flag2=0;
 		table->elems[i].f=0;
 		table->elems[i].pivot=0;
@@ -226,9 +236,10 @@ runTest( int argc, char** argv)
 	}
 	printf(" ;\n");
 	table->elems[0].seg_flag2=1;
+	table->elems[11].seg_flag2=1;
+	table->elems[19].seg_flag2=1;
 	for(unsigned int i=num_elements;i<n;++i){
 		table->elems[i].val=INT_MAX;
-		table->elems[i].at_place=1;
 		table->elems[i].seg_flag2=0;
 		table->elems[i].f=0;
 		table->elems[i].pivot=0;
@@ -274,7 +285,7 @@ runTest( int argc, char** argv)
 	cutilSafeCall(cudaMemcpy( table->elems, d_elems,table->n*sizeof(elem),cudaMemcpyDeviceToHost));
 	cutilSafeCall(cudaMemcpy( table->sums, d_sums,num_blocks2*sizeof(sum),cudaMemcpyDeviceToHost));
 	for( unsigned int i = 0; i < num_elements; ++i)
-		printf("pivot[%d] = %d offset=%d flag=%d\n",i,table->elems[i].pivot,table->elems[i].offset,table->elems[i].seg_flag2);
+		printf("pivot[%d] = %d offset=%d idown=%d flag=%d\n",i,table->elems[i].pivot,table->elems[i].offset,table->elems[i].idown,table->elems[i].seg_flag2);
 	for( unsigned int i = 0; i < num_blocks2; ++i)
 		printf("sum[%d] = %d seg_flag=%d\n",i,table->sums[i].val,table->sums[i].seg_flag);
 //	printf("sum[%d] = %d\n",0,table->sums[0].val);

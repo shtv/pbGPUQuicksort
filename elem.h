@@ -2,9 +2,12 @@
 #define _ELEM_TO_PBQUICKSORT
 typedef struct{
 	int val;
-	int at_place;
 	int pivot; // pivot, next flag
+	int pivot2; // copy of pivot to be changed by idown generator
 	int offset;
+	int idown;
+	int iup1;
+	int iup2;
 	short seg_flag;
 	short seg_flag2;
 	short f;
