@@ -12,7 +12,7 @@
 #define MAX_NUM_OF_THREADS_PER_BLOCK 512
 #define MAX_NUM_OF_BLOCKS 65536
 
-#define NUM_OF_ELEMENTS 144097 // k, where k = 1, 2, ...
+#define NUM_OF_ELEMENTS 20  // k, where k = 1, 2, ...
 #define NUM_OF_ARRAYS_PER_BLOCK 6
 #define MAX_SHARED_MEMORY_SIZE 
 
@@ -148,6 +148,17 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 
 	make_pivots2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2);
+
+	make_offsets<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
+		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK);
+
+	up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+
+	down_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+	cutilCheckMsg("down_sweep");
+
+	make_offsets2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
+		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2);
 }
 
 void
@@ -263,7 +274,7 @@ runTest( int argc, char** argv)
 	cutilSafeCall(cudaMemcpy( table->elems, d_elems,table->n*sizeof(elem),cudaMemcpyDeviceToHost));
 	cutilSafeCall(cudaMemcpy( table->sums, d_sums,num_blocks2*sizeof(sum),cudaMemcpyDeviceToHost));
 	for( unsigned int i = 0; i < num_elements; ++i)
-		printf("pivot[%d] = %d flag=%d\n",i,table->elems[i].pivot,table->elems[i].seg_flag2);
+		printf("pivot[%d] = %d offset=%d flag=%d\n",i,table->elems[i].pivot,table->elems[i].offset,table->elems[i].seg_flag2);
 	for( unsigned int i = 0; i < num_blocks2; ++i)
 		printf("sum[%d] = %d seg_flag=%d\n",i,table->sums[i].val,table->sums[i].seg_flag);
 //	printf("sum[%d] = %d\n",0,table->sums[0].val);
