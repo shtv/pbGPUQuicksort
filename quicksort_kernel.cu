@@ -661,7 +661,7 @@ __global__ void make_idowns(elem *g_elems, sum* g_sums, int thread_elems_num){
 
 	for(int i=0;i<thread_elems_num;++i){
 		f[begin2+i]=g_elems[begin+i].seg_flag2;
-		if(f[begin2+i])
+		if(g_elems[begin+i].pivot)
 			val[begin2+i]=0;
 		else
 			val[begin2+i]=1;
@@ -697,11 +697,6 @@ __global__ void make_iup1s(elem *g_elems, sum* g_sums, int thread_elems_num){
 
 	for(int i=0;i<thread_elems_num;++i){
 		f[begin2+i]=g_elems[begin+i].seg_flag2;
-		/*
-		if(f[begin2+i])
-			val[begin2+i]=0;//g_elems[begin+i].val;
-		else
-		*/
 		val[begin2+i]=1;
 	}
 	__syncthreads();
