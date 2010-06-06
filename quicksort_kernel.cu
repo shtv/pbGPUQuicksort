@@ -468,7 +468,7 @@ __global__ void make_idowns2(elem *g_elems, sum* g_sums, int thread_elems_num,in
 
 	__syncthreads();
 	if(thid==threads_num-1 && bid==num_blocks2-1 && !last_flag)
-		g_elems[begin+thread_elems_num-1].idown=val[begin2+thread_elems_num-2];
+		g_elems[begin+thread_elems_num-1].idown=1-g_elems[begin+thread_elems_num-2].pivot+val[begin2+thread_elems_num-2];
 }
 
 __global__ void make_iup2s2(elem *g_elems, sum* g_sums, int thread_elems_num,int num_blocks2,int num_blocks){
@@ -547,7 +547,7 @@ __global__ void make_iup1s2(elem *g_elems, sum* g_sums, int thread_elems_num,int
 
 	__syncthreads();
 	if(thid==threads_num-1 && bid==num_blocks2-1 && !last_flag)
-		g_elems[begin+thread_elems_num-1].idown=val[begin2+thread_elems_num-2];
+		g_elems[begin+thread_elems_num-1].iup1=1+val[begin2+thread_elems_num-2];
 }
 
 __global__ void make_offsets2(elem *g_elems, sum* g_sums, int thread_elems_num,int num_blocks2){
@@ -626,14 +626,14 @@ __global__ void make_pivots2(elem *g_elems, sum* g_sums, int thread_elems_num,in
 
 	for(int i=0;i<thread_elems_num;++i){
 		if(g_elems[begin+i].seg_flag2)
-			g_elems[begin+i].pivot=1; //g_elems[begin+i].val;
+			g_elems[begin+i].pivot=1;
 		else
 			g_elems[begin+i].pivot=val[begin2+i]<=g_elems[begin+i].val;
 	}
 
 	__syncthreads();
 	if(thid==threads_num-1 && bid==num_blocks2-1 && !last_flag)
-		g_elems[begin+thread_elems_num-1].pivot=val[begin2+thread_elems_num-2];
+		g_elems[begin+thread_elems_num-1].pivot=val[begin2+thread_elems_num-2]<=g_elems[begin+thread_elems_num-1].val;
 
 	/* ze starego projektu:
 	// little correction ;-)
@@ -745,11 +745,11 @@ __global__ void make_iup2s(elem *g_elems, sum* g_sums, int thread_elems_num, int
 	}
 
 	__syncthreads();
-	segmented_scan_up(val,f,thread_elems_num);
+//	segmented_scan_up(val,f,thread_elems_num);
 	__syncthreads();
 	for(int i=0;i<thread_elems_num;++i){
-		g_elems[begin-i-1+thread_elems_num].seg_flag=f[begin2+i];
-		g_elems[begin-i-1+thread_elems_num].iup2=val[begin2+i];
+		g_elems[begin-i-1+thread_elems_num].seg_flag=127+f[begin2+i];
+		g_elems[begin-i-1+thread_elems_num].iup2=117+val[begin2+i];
 	}
 	if(thid==0){	// do sprawdzenia!
 		g_sums[num_blocks-1-bid].val=val[n-1];

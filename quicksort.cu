@@ -186,6 +186,7 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 	make_iup2s<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK, num_blocks);
 
+/*	
 	up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
 
 	down_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
@@ -193,7 +194,6 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 
 	make_iup2s2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2,num_blocks);
-/*	
 		*/
 }
 
@@ -260,6 +260,10 @@ runTest( int argc, char** argv)
 	}
 	printf(" ;\n");
 	table->elems[0].seg_flag2=1;
+	table->elems[0].val=-198;
+	table->elems[1].val=-975;
+	table->elems[2].val=62;
+	table->elems[3].val=-234;
 	for(unsigned int i=num_elements;i<n;++i){
 		table->elems[i].val=INT_MAX;
 		table->elems[i].seg_flag2=1;
@@ -306,7 +310,7 @@ runTest( int argc, char** argv)
 	cutilSafeCall(cudaMemcpy( table->elems, d_elems,table->n*sizeof(elem),cudaMemcpyDeviceToHost));
 	cutilSafeCall(cudaMemcpy( table->sums, d_sums,num_blocks2*sizeof(sum),cudaMemcpyDeviceToHost));
 	for( unsigned int i = 0; i < n; ++i)
-		printf("pivot[%d] = %d offset=%d idown=%d iup=%d iup2=%d flag=%d\n",i,table->elems[i].pivot,table->elems[i].offset,table->elems[i].idown,table->elems[i].iup1,table->elems[i].iup2,table->elems[i].seg_flag2);
+		printf("pivot[%d] = %d offset=%d idown=%d iup=%d iup2=%d flag=%d\n",i,table->elems[i].pivot,table->elems[i].offset,table->elems[i].idown,table->elems[i].iup1,table->elems[i].iup2,table->elems[i].seg_flag);
 	for( unsigned int i = 0; i < num_blocks2; ++i)
 		printf("sum[%d] = %d seg_flag=%d\n",i,table->sums[i].val,table->sums[i].seg_flag);
 //	printf("sum[%d] = %d\n",0,table->sums[0].val);
