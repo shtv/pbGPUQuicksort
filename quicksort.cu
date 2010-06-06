@@ -9,10 +9,10 @@
 #  define NOMINMAX 
 #endif
 
-#define MAX_NUM_OF_THREADS_PER_BLOCK 512
+#define MAX_NUM_OF_THREADS_PER_BLOCK 1
 #define MAX_NUM_OF_BLOCKS 65536
 
-#define NUM_OF_ELEMENTS 20  // k, where k = 1, 2, ...
+#define NUM_OF_ELEMENTS 4  // k, where k = 1, 2, ...
 #define NUM_OF_ARRAYS_PER_BLOCK 6
 #define MAX_SHARED_MEMORY_SIZE 
 
@@ -181,6 +181,20 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 
 	make_iup1s2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2);
+
+	printf("thr.=%d\n",threads.x);
+	make_iup2s<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
+		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK, num_blocks);
+
+	up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+
+	down_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+	cutilCheckMsg("down_sweep");
+
+	make_iup2s2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
+		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2,num_blocks);
+/*	
+		*/
 }
 
 void
@@ -241,18 +255,14 @@ runTest( int argc, char** argv)
 
 		table->elems[i].val = elval;
 		table->elems[i].seg_flag2=0;
-		table->elems[i].f=0;
 		table->elems[i].pivot=0;
 		printf(" %d ",table->elems[i].val);
 	}
 	printf(" ;\n");
 	table->elems[0].seg_flag2=1;
-	table->elems[11].seg_flag2=1;
-	table->elems[19].seg_flag2=1;
 	for(unsigned int i=num_elements;i<n;++i){
 		table->elems[i].val=INT_MAX;
-		table->elems[i].seg_flag2=0;
-		table->elems[i].f=0;
+		table->elems[i].seg_flag2=1;
 		table->elems[i].pivot=0;
 	}
 	for(int i=0;i<num_blocks2;++i)
@@ -295,8 +305,8 @@ runTest( int argc, char** argv)
 
 	cutilSafeCall(cudaMemcpy( table->elems, d_elems,table->n*sizeof(elem),cudaMemcpyDeviceToHost));
 	cutilSafeCall(cudaMemcpy( table->sums, d_sums,num_blocks2*sizeof(sum),cudaMemcpyDeviceToHost));
-	for( unsigned int i = 0; i < num_elements; ++i)
-		printf("pivot[%d] = %d offset=%d idown=%d iup=%d flag=%d\n",i,table->elems[i].pivot,table->elems[i].offset,table->elems[i].idown,table->elems[i].iup1,table->elems[i].seg_flag2);
+	for( unsigned int i = 0; i < n; ++i)
+		printf("pivot[%d] = %d offset=%d idown=%d iup=%d iup2=%d flag=%d\n",i,table->elems[i].pivot,table->elems[i].offset,table->elems[i].idown,table->elems[i].iup1,table->elems[i].iup2,table->elems[i].seg_flag2);
 	for( unsigned int i = 0; i < num_blocks2; ++i)
 		printf("sum[%d] = %d seg_flag=%d\n",i,table->sums[i].val,table->sums[i].seg_flag);
 //	printf("sum[%d] = %d\n",0,table->sums[0].val);

@@ -10,7 +10,6 @@ typedef struct{
 	int iup2;
 	short seg_flag;
 	short seg_flag2;
-	short f;
 } elem;
 
 typedef struct{

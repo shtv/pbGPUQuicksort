@@ -471,6 +471,42 @@ __global__ void make_idowns2(elem *g_elems, sum* g_sums, int thread_elems_num,in
 		g_elems[begin+thread_elems_num-1].idown=val[begin2+thread_elems_num-2];
 }
 
+__global__ void make_iup2s2(elem *g_elems, sum* g_sums, int thread_elems_num,int num_blocks2,int num_blocks){
+	const int threads_num=blockDim.x; // number of threads in each block
+	const int bid=blockIdx.x; // given block's number
+  const int thid=threadIdx.x; // thread's number in given block
+	const int n=threads_num*thread_elems_num;
+	const int begin=(num_blocks-1-bid)*n+(threads_num-1-thid)*thread_elems_num;
+	const int begin2=thid*thread_elems_num;
+	int last_flag=0;
+
+	extern __shared__ int absolute_shared[];
+	int* f=(int*)&absolute_shared[0];
+	int* val=(int*)&absolute_shared[threads_num*thread_elems_num];
+
+	for(int i=0;i<thread_elems_num;++i){
+		f[begin2+i]=g_elems[begin+thread_elems_num-1-i].seg_flag;
+		val[begin2+i]=g_elems[begin+thread_elems_num-1-i].iup2;
+	}
+	__syncthreads();
+	last_flag=f[begin2+thread_elems_num-1];
+
+	__syncthreads();
+	// zrzut z sumy bloków:
+	if(thid==0){
+		f[n-1]=g_sums[num_blocks-1-bid].seg_flag;
+		val[n-1]=g_sums[num_blocks-1-bid].val;
+	}
+
+	__syncthreads();
+	segmented_scan_down(val,f,NULL,thread_elems_num);
+	__syncthreads();
+
+	for(int i=0;i<thread_elems_num;++i){
+		g_elems[begin+thread_elems_num-1-i].iup2=val[begin2+i];
+	}
+}
+
 __global__ void make_iup1s2(elem *g_elems, sum* g_sums, int thread_elems_num,int num_blocks2){
 	const int threads_num=blockDim.x; // number of threads in each block
 	const int bid=blockIdx.x; // given block's number
@@ -678,6 +714,48 @@ __global__ void make_idowns(elem *g_elems, sum* g_sums, int thread_elems_num){
 		g_sums[bid].seg_flag=f[n-1];
 		if(bid>0)
 			g_sums[bid-1].next_seg_flag=f[0];
+		else
+			g_sums[0].next_seg_flag=0;
+	}
+}
+
+__global__ void make_iup2s(elem *g_elems, sum* g_sums, int thread_elems_num, int num_blocks){
+	const int threads_num=blockDim.x; // number of threads in each block
+	const int bid=blockIdx.x; // given block's number
+  const int thid=threadIdx.x; // thread's number in given block
+	const int n=threads_num*thread_elems_num;
+	const int begin=(num_blocks-1-bid)*n+(threads_num-1-thid)*thread_elems_num;
+	const int begin3=bid*n+thid*thread_elems_num;
+	const int begin2=thid*thread_elems_num;
+
+	extern __shared__ int absolute_shared[];
+	int* f=(int*)&absolute_shared[0];
+	int* val=(int*)&absolute_shared[threads_num*thread_elems_num];
+
+	for(int i=0;i<thread_elems_num;++i){
+		f[begin2+i]=g_elems[begin+thread_elems_num-1-i].seg_flag2;
+		val[begin2+i]=1-g_elems[begin+thread_elems_num-1-i].pivot;
+	}
+	__syncthreads();
+	if(thid==0){
+		if(bid==0)
+			f[n-1]=0;
+		if(bid==num_blocks-1)
+			f[0]=1;
+	}
+
+	__syncthreads();
+	segmented_scan_up(val,f,thread_elems_num);
+	__syncthreads();
+	for(int i=0;i<thread_elems_num;++i){
+		g_elems[begin-i-1+thread_elems_num].seg_flag=f[begin2+i];
+		g_elems[begin-i-1+thread_elems_num].iup2=val[begin2+i];
+	}
+	if(thid==0){	// do sprawdzenia!
+		g_sums[num_blocks-1-bid].val=val[n-1];
+		g_sums[num_blocks-1-bid].seg_flag=f[n-1];
+		if(bid>0)
+			g_sums[num_blocks-1-bid+1].next_seg_flag=f[0];
 		else
 			g_sums[0].next_seg_flag=0;
 	}
