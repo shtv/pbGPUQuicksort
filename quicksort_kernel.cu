@@ -739,23 +739,23 @@ __global__ void make_iup2s(elem *g_elems, sum* g_sums, int thread_elems_num, int
 	__syncthreads();
 	if(thid==0){
 		if(bid==0)
-			f[n-1]=0;
-		if(bid==num_blocks-1)
 			f[0]=1;
+		if(bid==num_blocks-1)
+			f[n-1]=0;
 	}
 
 	__syncthreads();
-//	segmented_scan_up(val,f,thread_elems_num);
+	segmented_scan_up(val,f,thread_elems_num);
 	__syncthreads();
 	for(int i=0;i<thread_elems_num;++i){
-		g_elems[begin-i-1+thread_elems_num].seg_flag=127+f[begin2+i];
-		g_elems[begin-i-1+thread_elems_num].iup2=117+val[begin2+i];
+		g_elems[begin-i-1+thread_elems_num].seg_flag=f[begin2+i];
+		g_elems[begin-i-1+thread_elems_num].iup2=val[begin2+i];
 	}
 	if(thid==0){	// do sprawdzenia!
-		g_sums[num_blocks-1-bid].val=val[n-1];
-		g_sums[num_blocks-1-bid].seg_flag=f[n-1];
+		g_sums[bid].val=val[n-1];
+		g_sums[bid].seg_flag=f[n-1];
 		if(bid>0)
-			g_sums[num_blocks-1-bid+1].next_seg_flag=f[0];
+			g_sums[bid-1].next_seg_flag=f[0];
 		else
 			g_sums[0].next_seg_flag=0;
 	}

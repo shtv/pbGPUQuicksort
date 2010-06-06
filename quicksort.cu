@@ -186,7 +186,6 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 	make_iup2s<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK, num_blocks);
 
-/*	
 	up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
 
 	down_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
@@ -194,6 +193,7 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 
 	make_iup2s2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2,num_blocks);
+/*	
 		*/
 }
 
