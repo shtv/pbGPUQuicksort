@@ -185,9 +185,9 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 
 	make_iup1s2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2);
-/*	
 
 	printf("threads=%d\n",threads.x);
+	printf("num_blocks=%d\n",num_blocks);
 	make_iup2s<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK, num_blocks);
 
@@ -201,6 +201,7 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 
 	make_iup2s2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2,num_blocks);
+/*	
 		*/
 }
 

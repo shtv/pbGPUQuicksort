@@ -478,9 +478,7 @@ __global__ void make_iup2s2(elem *g_elems, sum* g_sums, int thread_elems_num,int
   const int thid=threadIdx.x; // thread's number in given block
 	const int n=threads_num*thread_elems_num;
 	const int begin=(num_blocks-1-bid)*n+(threads_num-1-thid)*thread_elems_num;
-	const int begin3=bid*n+thid*thread_elems_num;
 	const int begin2=thid*thread_elems_num;
-	int last_flag=0;
 
 	extern __shared__ int absolute_shared[];
 	int* f=(int*)&absolute_shared[0];
@@ -490,8 +488,6 @@ __global__ void make_iup2s2(elem *g_elems, sum* g_sums, int thread_elems_num,int
 		f[begin2+i]=g_elems[begin+thread_elems_num-1-i].seg_flag;
 		val[begin2+i]=g_elems[begin+thread_elems_num-1-i].iup2;
 	}
-	__syncthreads();
-	last_flag=f[begin2+thread_elems_num-1];
 
 	__syncthreads();
 	// zrzut z sumy bloków:
@@ -505,9 +501,15 @@ __global__ void make_iup2s2(elem *g_elems, sum* g_sums, int thread_elems_num,int
 	__syncthreads();
 
 	for(int i=0;i<thread_elems_num;++i){
-		g_elems[begin3+i].iup2=val[begin2+i];
-		g_elems[begin3+i].seg_flag=f[begin2+i];
+		g_elems[begin+thread_elems_num-1-i].iup2=val[begin2+i];
+		g_elems[begin+thread_elems_num-1-i].seg_flag=f[begin2+i];
 	}
+
+	__syncthreads();
+	if(thid==threads_num-1 && bid==num_blocks2-1)
+		g_elems[0].iup2=1-g_elems[1].pivot+g_elems[1].iup2;
+	if(thid==0 && bid==0)
+		g_elems[num_blocks2*threads_num*thread_elems_num-1].iup2=0;
 }
 
 __global__ void make_iup1s2(elem *g_elems, sum* g_sums, int thread_elems_num,int num_blocks2){
@@ -720,7 +722,6 @@ __global__ void make_iup2s(elem *g_elems, sum* g_sums, int thread_elems_num, int
   const int thid=threadIdx.x; // thread's number in given block
 	const int n=threads_num*thread_elems_num;
 	const int begin=(num_blocks-1-bid)*n+(threads_num-1-thid)*thread_elems_num;
-	const int begin3=bid*n+thid*thread_elems_num;
 	const int begin2=thid*thread_elems_num;
 
 	extern __shared__ int absolute_shared[];
@@ -742,6 +743,7 @@ __global__ void make_iup2s(elem *g_elems, sum* g_sums, int thread_elems_num, int
 	__syncthreads();
 	segmented_scan_up(val,f,thread_elems_num);
 	__syncthreads();
+
 	for(int i=0;i<thread_elems_num;++i){
 		g_elems[begin-i-1+thread_elems_num].seg_flag=f[begin2+i];
 		g_elems[begin-i-1+thread_elems_num].iup2=val[begin2+i];
