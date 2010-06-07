@@ -57,9 +57,11 @@ void down_sweep_for_sum(sum* d_sums,int num_sums,int n){
 	int threads_num;
 
 	if(blocks_num==1)
-		threads_num=n/2;
+		threads_num=num_sums/2;
 	else
 		threads_num=MAX_NUM_OF_THREADS_PER_BLOCK;
+
+	if(!threads_num) return;
 
 	if(blocks_num>1){
 		dim3 grid2(1,1,1);
@@ -86,9 +88,11 @@ void up_sweep_for_sum(sum* d_sums,int num_sums,int n){
 	int threads_num;
 
 	if(blocks_num==1)
-		threads_num=n/2;
+		threads_num=num_sums/2;
 	else
 		threads_num=MAX_NUM_OF_THREADS_PER_BLOCK;
+
+	if(!threads_num) return;
 
 	dim3 threads(threads_num,1,1);
 	printf("first of the accumulating functions: blocks=%d threads in each one=%d\n",blocks_num,threads_num);
@@ -123,7 +127,7 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 	dim3 grid2(1,1,1);
 	dim3 threads2(num_threads2,1,1);
 
-	printf("mikki: %d %d %d %d %d n=%d\n",num_threads2,num_elements,num_elements_per_block,num_blocks,num_blocks2,n);
+	printf("mikki: threads=%d elems=%d elems_per_block%d blocks=%d blocks2=%d n=%d\n",num_threads2,num_elements,num_elements_per_block,num_blocks,num_blocks2,n);
 
 	// zakomentowane na jakis czas:
 	/*
@@ -149,6 +153,7 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 	make_pivots2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2);
 
+/*	
 	make_offsets<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK);
 
@@ -182,18 +187,20 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 	make_iup1s2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2);
 
-	printf("thr.=%d\n",threads.x);
+	printf("threads=%d\n",threads.x);
 	make_iup2s<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK, num_blocks);
 
+	printf("num_blocks2=%d num_elements_per_block=%d\n",num_blocks2,num_elements_per_block);
 	up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+
+	printf("numBLOCKS=%d num_el=%d\n",num_blocks2,num_elements_per_block);
 
 	down_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
 	cutilCheckMsg("down_sweep");
 
 	make_iup2s2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2,num_blocks);
-/*	
 		*/
 }
 
@@ -260,6 +267,7 @@ runTest( int argc, char** argv)
 	}
 	printf(" ;\n");
 	table->elems[0].seg_flag2=1;
+	table->elems[3].seg_flag2=1;
 	table->elems[0].val=-198;
 	table->elems[1].val=-975;
 	table->elems[2].val=62;
