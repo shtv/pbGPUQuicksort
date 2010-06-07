@@ -352,7 +352,7 @@ __global__ void accumulate_sum_of_sums2(sum* g_sums, int thread_elems_num, int o
 	}
 }
 
-__global__ void accumulate_sums2(sum* g_sums, int thread_elems_num){
+__global__ void accumulate_sums2(sum* g_sums, int thread_elems_num,short one_block){
 	const int threads_num=blockDim.x; // number of threads in each block
 	const int bid=blockIdx.x; // given block's number
   const int thid=threadIdx.x; // thread's number in given block
@@ -370,6 +370,10 @@ __global__ void accumulate_sums2(sum* g_sums, int thread_elems_num){
 		f2[begin2+i]=g_sums[begin+i].next_seg_flag;
 		val[begin2+i]=g_sums[begin+i].val;
 	}
+	if(thid==threads_num-1 && one_block)
+		val[threads_num*thread_elems_num-1]=0;
+	__syncthreads();
+
 	__syncthreads();
 	segmented_scan_down(val,f,f2,thread_elems_num);
 	__syncthreads();
@@ -559,7 +563,6 @@ __global__ void make_offsets2(elem *g_elems, sum* g_sums, int thread_elems_num,i
 	const int n=threads_num*thread_elems_num;
 	const int begin=bid*n+thid*thread_elems_num;
 	const int begin2=thid*thread_elems_num;
-	int last_flag=0;
 
 	extern __shared__ int absolute_shared[];
 	int* f=(int*)&absolute_shared[0];
@@ -570,7 +573,6 @@ __global__ void make_offsets2(elem *g_elems, sum* g_sums, int thread_elems_num,i
 		val[begin2+i]=g_elems[begin+i].offset;
 	}
 	__syncthreads();
-	last_flag=f[begin2+thread_elems_num-1];
 
 	__syncthreads();
 	// zrzut z sumy bloków:
@@ -591,8 +593,8 @@ __global__ void make_offsets2(elem *g_elems, sum* g_sums, int thread_elems_num,i
 	}
 
 	__syncthreads();
-	if(thid==threads_num-1 && bid==num_blocks2-1 && !last_flag)
-		g_elems[begin+thread_elems_num-1].offset=val[begin2+thread_elems_num-2];
+	if(thid==threads_num-1 && bid==num_blocks2-1 && !g_elems[begin+thread_elems_num-1].seg_flag2)
+		g_elems[begin+thread_elems_num-1].offset=g_elems[begin+thread_elems_num-2].offset;
 }
 
 __global__ void make_pivots2(elem *g_elems, sum* g_sums, int thread_elems_num,int num_blocks2){
@@ -625,14 +627,14 @@ __global__ void make_pivots2(elem *g_elems, sum* g_sums, int thread_elems_num,in
 
 	for(int i=0;i<thread_elems_num;++i){
 		if(g_elems[begin+i].seg_flag2)
-			g_elems[begin+i].pivot=g_elems[begin+i].val;//1;
+			g_elems[begin+i].pivot=1;
 		else
-			g_elems[begin+i].pivot=val[begin2+i];//<=g_elems[begin+i].val;
+			g_elems[begin+i].pivot=val[begin2+i]<=g_elems[begin+i].val;
 	}
 
 	__syncthreads();
 	if(thid==threads_num-1 && bid==num_blocks2-1 && !g_elems[begin+thread_elems_num-1].seg_flag2)
-		g_elems[begin+thread_elems_num-1].pivot=100+val[begin2+thread_elems_num-2];//<=g_elems[begin+thread_elems_num-1].val;
+		g_elems[begin+thread_elems_num-1].pivot=val[begin2+thread_elems_num-2]<=g_elems[begin+thread_elems_num-1].val;
 
 	/* ze starego projektu:
 	// little correction ;-)
