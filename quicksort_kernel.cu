@@ -517,7 +517,6 @@ __global__ void make_iup1s2(elem *g_elems, sum* g_sums, int thread_elems_num,int
 	const int n=threads_num*thread_elems_num;
 	const int begin=bid*n+thid*thread_elems_num;
 	const int begin2=thid*thread_elems_num;
-	int last_flag=0;
 
 	extern __shared__ int absolute_shared[];
 	int* f=(int*)&absolute_shared[0];
@@ -527,8 +526,6 @@ __global__ void make_iup1s2(elem *g_elems, sum* g_sums, int thread_elems_num,int
 		f[begin2+i]=g_elems[begin+i].seg_flag;
 		val[begin2+i]=g_elems[begin+i].iup1;
 	}
-	__syncthreads();
-	last_flag=f[begin2+thread_elems_num-1];
 
 	__syncthreads();
 	// zrzut z sumy bloków:
@@ -549,8 +546,8 @@ __global__ void make_iup1s2(elem *g_elems, sum* g_sums, int thread_elems_num,int
 	}
 
 	__syncthreads();
-	if(thid==threads_num-1 && bid==num_blocks2-1 && !last_flag)
-		g_elems[begin+thread_elems_num-1].iup1=1+val[begin2+thread_elems_num-2];
+	if(thid==threads_num-1 && bid==num_blocks2-1 && !g_elems[begin+thread_elems_num-1].seg_flag2)
+		g_elems[begin+thread_elems_num-1].iup1=1+g_elems[begin+thread_elems_num-2].iup1;
 }
 
 __global__ void make_offsets2(elem *g_elems, sum* g_sums, int thread_elems_num,int num_blocks2){
