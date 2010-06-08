@@ -131,6 +131,12 @@ void quicksort(tab* table,int num_elements,int n,int num_elements_per_block,int 
 
 	printf("mikki: threads=%d elems=%d elems_per_block%d blocks=%d blocks2=%d n=%d\n",num_threads2,num_elements,num_elements_per_block,num_blocks,num_blocks2,n);
 
+	printf("Before first iteration\n");
+	for( unsigned int i = 0; i < n; ++i)
+		printf("val[%d] = %d seg_flag2 = %d pivot[%d] = %d offset=%d idown=%d iup=%d iup2=%d flag=%d\n",i,table->elems[i].val,table->elems[i].seg_flag2,i,table->elems[i].pivot,table->elems[i].offset,table->elems[i].idown,table->elems[i].iup1,table->elems[i].iup2,table->elems[i].seg_flag);
+	for( unsigned int i = 0; i < num_blocks2; ++i)
+		printf("sum[%d] = %d seg_flag=%d\n",i,table->sums[i].val,table->sums[i].seg_flag);
+
 	do{
 		cutilSafeCall( cudaMalloc( (void**) &d_elems, table->n*sizeof(elem)));
 		cutilSafeCall( cudaMalloc( (void**) &d_sums, num_blocks2*sizeof(sum)));
@@ -181,21 +187,10 @@ void quicksort(tab* table,int num_elements,int n,int num_elements_per_block,int 
 		make_iup1s2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 			(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2);
 
-		/*
-		printf("threads=%d\n",threads.x);
-		printf("num_blocks=%d\n",num_blocks);
-		*/
 		make_iup2s<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 			(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK, num_blocks);
 
-		/*
-		printf("num_blocks2=%d num_elements_per_block=%d\n",num_blocks2,num_elements_per_block);
-		*/
 		up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
-
-		/*
-		printf("numBLOCKS=%d num_el=%d\n",num_blocks2,num_elements_per_block);
-		*/
 
 		down_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
 		cutilCheckMsg("down_sweep");
@@ -216,6 +211,8 @@ void quicksort(tab* table,int num_elements,int n,int num_elements_per_block,int 
 			(d_elems, d_sums, num_elements,num_elements_per_block,num_blocks,num_blocks2);
 
 		up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+		/*
+		*/
 
 		cutilSafeCall(cudaMemcpy( table->elems, d_elems,table->n*sizeof(elem),cudaMemcpyDeviceToHost));
 		cutilSafeCall(cudaMemcpy( table->sums, d_sums,num_blocks2*sizeof(sum),cudaMemcpyDeviceToHost));

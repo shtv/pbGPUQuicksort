@@ -119,7 +119,7 @@ __device__ void seg_copy(float *f,float *pivots,float *keys,float *seg_flags,uns
 	f[2*thid+1]=(di<0)?0:1;
 }
 
-__device__ void make_offsets(float* offsets,float* seg_flags,int n){
+__device__ void ake_offsets(float* offsets,float* seg_flags,int n){
   int thid=threadIdx.x;
 	offsets[2*thid]=(seg_flags[2*thid])?2*thid:0;
 	offsets[2*thid+1]=(seg_flags[2*thid+1])?2*thid+1:0;
@@ -501,13 +501,17 @@ __global__ void make_iup2s2(elem *g_elems, sum* g_sums, int thread_elems_num,int
 	__syncthreads();
 
 	for(int i=0;i<thread_elems_num;++i){
-		g_elems[begin+thread_elems_num-1-i].iup2=val[begin2+i];
+		if(i<begin+thread_elems_num && g_elems[begin+thread_elems_num-i].seg_flag2)
+			g_elems[begin+thread_elems_num-1-i].iup2=0;
+		else
+			g_elems[begin+thread_elems_num-1-i].iup2=val[begin2+i];
 		g_elems[begin+thread_elems_num-1-i].seg_flag=f[begin2+i];
 	}
 
 	__syncthreads();
 	if(thid==threads_num-1 && bid==num_blocks2-1)
-		g_elems[0].iup2=1-g_elems[1].pivot+g_elems[1].iup2;
+		g_elems[0].iup2=(g_elems[1].seg_flag2)?0:1-g_elems[1].pivot+g_elems[1].iup2;
+//		g_elems[0].iup2=117-g_elems[1].pivot+g_elems[1].iup2;
 	if(thid==0 && bid==0)
 		g_elems[num_blocks2*threads_num*thread_elems_num-1].iup2=0;
 }
@@ -622,9 +626,10 @@ __global__ void make_pivots2(elem *g_elems, sum* g_sums, int thread_elems_num,in
 	__syncthreads();
 
 	for(int i=0;i<thread_elems_num;++i){
-		if(g_elems[begin+i].seg_flag2)
-			g_elems[begin+i].pivot=1;
-		else
+		if(g_elems[begin+i].seg_flag2){
+			val[begin2+i]=g_elems[begin+i].val;
+			g_elems[begin+i].pivot=1;//g_elems[begin+i].val;//1;
+		}else
 			g_elems[begin+i].pivot=val[begin2+i]<=g_elems[begin+i].val;
 	}
 
@@ -729,9 +734,14 @@ __global__ void make_iup2s(elem *g_elems, sum* g_sums, int thread_elems_num, int
 	int* val=(int*)&absolute_shared[threads_num*thread_elems_num];
 
 	for(int i=0;i<thread_elems_num;++i){
-		f[begin2+i]=g_elems[begin+thread_elems_num-1-i].seg_flag2;
+		if(thid==0 && bid==0 && i==0)
+			f[0]=1;
+		else
+			f[begin2+i]=g_elems[begin+thread_elems_num-i].seg_flag2;
+//		f[begin2+i]=g_elems[begin+thread_elems_num-1-i].seg_flag2;
 		val[begin2+i]=1-g_elems[begin+thread_elems_num-1-i].pivot;
 	}
+	/*
 	__syncthreads();
 	if(thid==0){
 		if(bid==0)
@@ -739,6 +749,7 @@ __global__ void make_iup2s(elem *g_elems, sum* g_sums, int thread_elems_num, int
 		if(bid==num_blocks-1)
 			f[n-1]=0;
 	}
+	*/
 
 	__syncthreads();
 	segmented_scan_up(val,f,thread_elems_num);
@@ -957,7 +968,7 @@ __global__ void check_order(elem *g_elems, sum* g_sums, int n_real,int n,int num
 		__syncthreads();
 		seg_copy(f,pivots,data,seg_flags,n);
 		__syncthreads();
-		make_offsets(offsets,seg_flags,n);
+		ake_offsets(offsets,seg_flags,n);
 		__syncthreads();
 		float offset1=offsets[2*thid];
 		float offset2=offsets[2*thid+1];
