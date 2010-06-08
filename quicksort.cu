@@ -9,12 +9,13 @@
 #  define NOMINMAX 
 #endif
 
-#define MAX_NUM_OF_THREADS_PER_BLOCK 1
+#define MAX_NUM_OF_THREADS_PER_BLOCK 512
 #define MAX_NUM_OF_BLOCKS 65536
 
-#define NUM_OF_ELEMENTS 4  // k, where k = 1, 2, ...
+#define NUM_OF_ELEMENTS 1024  // k, where k = 1, 2, ...
 #define NUM_OF_ARRAYS_PER_BLOCK 6
 #define MAX_SHARED_MEMORY_SIZE 
+#define MAX_LOOP 1000
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -132,7 +133,7 @@ void quicksort(tab* table,int num_elements,int n,int num_elements_per_block,int 
 	printf("mikki: threads=%d elems=%d elems_per_block%d blocks=%d blocks2=%d n=%d\n",num_threads2,num_elements,num_elements_per_block,num_blocks,num_blocks2,n);
 
 	printf("Before first iteration\n");
-	for( unsigned int i = 0; i < n; ++i)
+	for( unsigned int i = 0; i < num_elements; ++i)
 		printf("val[%d] = %d seg_flag2 = %d pivot[%d] = %d offset=%d idown=%d iup=%d iup2=%d flag=%d\n",i,table->elems[i].val,table->elems[i].seg_flag2,i,table->elems[i].pivot,table->elems[i].offset,table->elems[i].idown,table->elems[i].iup1,table->elems[i].iup2,table->elems[i].seg_flag);
 	for( unsigned int i = 0; i < num_blocks2; ++i)
 		printf("sum[%d] = %d seg_flag=%d\n",i,table->sums[i].val,table->sums[i].seg_flag);
@@ -207,9 +208,11 @@ void quicksort(tab* table,int num_elements,int n,int num_elements_per_block,int 
 		cutilCheckMsg("move_elems3");
 		move_elems3<<< grid, threads >>> (d_elems, 2, num_elements);
 
+		cutilCheckMsg("check_order");
 		check_order<<< grid, threads, sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 			(d_elems, d_sums, num_elements,num_elements_per_block,num_blocks,num_blocks2);
 
+		cutilCheckMsg("upsweep_sum");
 		up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
 		/*
 		*/
@@ -221,12 +224,12 @@ void quicksort(tab* table,int num_elements,int n,int num_elements_per_block,int 
 		cutilSafeCall(cudaFree(d_sums));
 
 		printf("Iteration: %d\n",++i);
-		for( unsigned int i = 0; i < n; ++i)
+		for( unsigned int i = 0; i < num_elements; ++i)
 			printf("val[%d] = %d seg_flag2 = %d pivot[%d] = %d offset=%d idown=%d iup=%d iup2=%d flag=%d\n",i,table->elems[i].val,table->elems[i].seg_flag2,i,table->elems[i].pivot,table->elems[i].offset,table->elems[i].idown,table->elems[i].iup1,table->elems[i].iup2,table->elems[i].seg_flag);
 		for( unsigned int i = 0; i < num_blocks2; ++i)
 			printf("sum[%d] = %d seg_flag=%d\n",i,table->sums[i].val,table->sums[i].seg_flag);
 
-	}while(table->sums[num_blocks2-1].val && i<10);
+	}while(table->sums[num_blocks2-1].val && i<MAX_LOOP);
 }
 
 void
