@@ -495,13 +495,12 @@ __global__ void make_iup2s2(elem *g_elems, sum* g_sums, int thread_elems_num,int
 		f[n-1]=g_sums[bid].seg_flag;
 		val[n-1]=g_sums[bid].val;
 	}
-
 	__syncthreads();
 	segmented_scan_down(val,f,NULL,thread_elems_num);
 	__syncthreads();
 
 	for(int i=0;i<thread_elems_num;++i){
-		if(i<begin+thread_elems_num && g_elems[begin+thread_elems_num-i].seg_flag2)
+		if(i>0 && g_elems[begin+thread_elems_num-i].seg_flag2)
 			g_elems[begin+thread_elems_num-1-i].iup2=0;
 		else
 			g_elems[begin+thread_elems_num-1-i].iup2=val[begin2+i];
