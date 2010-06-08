@@ -203,10 +203,13 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2,num_blocks);
 	
 	cutilCheckMsg("move_elems1");
-	move_elems1<<< grid, threads >>> (d_elems, 2);
+	move_elems1<<< grid, threads >>> (d_elems, 2, num_elements);
 	
 	cutilCheckMsg("move_elems2");
-	move_elems2<<< grid, threads >>> (d_elems, 2);
+	move_elems2<<< grid, threads >>> (d_elems, 2, num_elements);
+	
+	cutilCheckMsg("move_elems3");
+	move_elems3<<< grid, threads >>> (d_elems, 2, num_elements);
 /*	
 		*/
 }
