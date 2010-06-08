@@ -67,13 +67,13 @@ void down_sweep_for_sum(sum* d_sums,int num_sums,int n){
 		dim3 grid2(1,1,1);
 		dim3 threads2(blocks_num/2,1,1);
 		int offset=MAX_NUM_OF_THREADS_PER_BLOCK*2;
-		printf("2:offset=%d threads to sum of sums = %d \n",offset,threads2.x);
+//		printf("2:offset=%d threads to sum of sums = %d \n",offset,threads2.x);
 		accumulate_sum_of_sums2<<<grid2,threads2,6*sizeof(int)*threads2.x>>> (d_sums,2,offset);
 		cutilCheckMsg("accumulate_sum_of_sums2");
 	}
 
 	dim3 threads(threads_num,1,1);
-	printf("second of the accumulating functions: blocks=%d threads in each one=%d\n",blocks_num,threads_num);
+//	printf("second of the accumulating functions: blocks=%d threads in each one=%d\n",blocks_num,threads_num);
 	accumulate_sums2<<<grid,threads,6*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK>>> (d_sums,2,blocks_num==1);
 	cutilCheckMsg("accumulate_sums2");
 }
@@ -95,7 +95,7 @@ void up_sweep_for_sum(sum* d_sums,int num_sums,int n){
 	if(!threads_num) return;
 
 	dim3 threads(threads_num,1,1);
-	printf("first of the accumulating functions: blocks=%d threads in each one=%d\n",blocks_num,threads_num);
+//	printf("first of the accumulating functions: blocks=%d threads in each one=%d\n",blocks_num,threads_num);
 	accumulate_sums<<<grid,threads,4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK>>> (d_sums,2);
 	cutilCheckMsg("accumulate_sums");
 
@@ -104,15 +104,17 @@ void up_sweep_for_sum(sum* d_sums,int num_sums,int n){
 	dim3 grid2(1,1,1);
 	dim3 threads2(blocks_num/2,1,1);
 	int offset=MAX_NUM_OF_THREADS_PER_BLOCK*2;
-	printf("offset=%d threads to sum of sums = %d \n",offset,threads2.x);
+//	printf("offset=%d threads to sum of sums = %d \n",offset,threads2.x);
 	accumulate_sum_of_sums<<<grid2,threads2,4*sizeof(int)*threads2.x>>> (d_sums,2,offset);
 	cutilCheckMsg("accumulate_sum_of_sums");
 }
 
-void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements_per_block,int num_blocks,int num_blocks2){
+void quicksort(tab* table,int num_elements,int n,int num_elements_per_block,int num_blocks,int num_blocks2){
+	elem* d_elems;
+	sum* d_sums;
+	int i=0;
 
-	dim3  grid(num_blocks, 1, 1); // 
-//	dim3  threads(num_elements/2, 1, 1);
+	dim3  grid(num_blocks, 1, 1); 
 	dim3  threads(MAX_NUM_OF_THREADS_PER_BLOCK, 1, 1);
 
 	int num_threads2=num_blocks2/2;
@@ -129,80 +131,105 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 
 	printf("mikki: threads=%d elems=%d elems_per_block%d blocks=%d blocks2=%d n=%d\n",num_threads2,num_elements,num_elements_per_block,num_blocks,num_blocks2,n);
 
-	make_pivots<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
-		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK);
+	do{
+		cutilSafeCall( cudaMalloc( (void**) &d_elems, table->n*sizeof(elem)));
+		cutilSafeCall( cudaMalloc( (void**) &d_sums, num_blocks2*sizeof(sum)));
+		cutilSafeCall( cudaMemcpy( d_elems, table->elems, table->n*sizeof(elem), cudaMemcpyHostToDevice) );
+		cutilSafeCall( cudaMemcpy( d_sums, table->sums, num_blocks2*sizeof(sum), cudaMemcpyHostToDevice) );
 
-	up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+		make_pivots<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
+			(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK);
 
-	down_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
-	cutilCheckMsg("down_sweep");
+		up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
 
-	make_pivots2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
-		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2);
+		down_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+		cutilCheckMsg("down_sweep");
 
-	make_offsets<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
-		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK);
+		make_pivots2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
+			(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2);
 
-	up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+		make_offsets<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
+			(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK);
 
-	down_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
-	cutilCheckMsg("down_sweep");
+		up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
 
-	make_offsets2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
-		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2);
+		down_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+		cutilCheckMsg("down_sweep");
 
-	make_idowns<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
-		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK);
+		make_offsets2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
+			(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2);
 
-	up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+		make_idowns<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
+			(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK);
 
-	down_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
-	cutilCheckMsg("down_sweep");
+		up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
 
-	make_idowns2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
-		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2);
+		down_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+		cutilCheckMsg("down_sweep");
 
-	make_iup1s<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
-		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK);
+		make_idowns2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
+			(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2);
 
-	up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+		make_iup1s<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
+			(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK);
 
-	down_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
-	cutilCheckMsg("down_sweep");
+		up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
 
-	make_iup1s2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
-		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2);
+		down_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+		cutilCheckMsg("down_sweep");
 
-	printf("threads=%d\n",threads.x);
-	printf("num_blocks=%d\n",num_blocks);
-	make_iup2s<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
-		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK, num_blocks);
+		make_iup1s2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
+			(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2);
 
-	printf("num_blocks2=%d num_elements_per_block=%d\n",num_blocks2,num_elements_per_block);
-	up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+		/*
+		printf("threads=%d\n",threads.x);
+		printf("num_blocks=%d\n",num_blocks);
+		*/
+		make_iup2s<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
+			(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK, num_blocks);
 
-	printf("numBLOCKS=%d num_el=%d\n",num_blocks2,num_elements_per_block);
+		/*
+		printf("num_blocks2=%d num_elements_per_block=%d\n",num_blocks2,num_elements_per_block);
+		*/
+		up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
 
-	down_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
-	cutilCheckMsg("down_sweep");
+		/*
+		printf("numBLOCKS=%d num_el=%d\n",num_blocks2,num_elements_per_block);
+		*/
 
-	make_iup2s2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
-		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2,num_blocks);
+		down_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+		cutilCheckMsg("down_sweep");
+
+		make_iup2s2<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
+			(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK,num_blocks2,num_blocks);
 	
-	cutilCheckMsg("move_elems1");
-	move_elems1<<< grid, threads >>> (d_elems, 2, num_elements);
+		cutilCheckMsg("move_elems1");
+		move_elems1<<< grid, threads >>> (d_elems, 2, num_elements);
 	
-	cutilCheckMsg("move_elems2");
-	move_elems2<<< grid, threads >>> (d_elems, 2, num_elements);
+		cutilCheckMsg("move_elems2");
+		move_elems2<<< grid, threads >>> (d_elems, 2, num_elements);
 	
-	cutilCheckMsg("move_elems3");
-	move_elems3<<< grid, threads >>> (d_elems, 2, num_elements);
+		cutilCheckMsg("move_elems3");
+		move_elems3<<< grid, threads >>> (d_elems, 2, num_elements);
 
-	check_order<<< grid, threads, sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
-		(d_elems, d_sums, num_elements,num_elements_per_block,num_blocks,num_blocks2);
+		check_order<<< grid, threads, sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
+			(d_elems, d_sums, num_elements,num_elements_per_block,num_blocks,num_blocks2);
 
-	up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+		up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
 
+		cutilSafeCall(cudaMemcpy( table->elems, d_elems,table->n*sizeof(elem),cudaMemcpyDeviceToHost));
+		cutilSafeCall(cudaMemcpy( table->sums, d_sums,num_blocks2*sizeof(sum),cudaMemcpyDeviceToHost));
+	
+		cutilSafeCall(cudaFree(d_elems));
+		cutilSafeCall(cudaFree(d_sums));
+
+		printf("Iteration: %d\n",++i);
+		for( unsigned int i = 0; i < n; ++i)
+			printf("val[%d] = %d seg_flag2 = %d pivot[%d] = %d offset=%d idown=%d iup=%d iup2=%d flag=%d\n",i,table->elems[i].val,table->elems[i].seg_flag2,i,table->elems[i].pivot,table->elems[i].offset,table->elems[i].idown,table->elems[i].iup1,table->elems[i].iup2,table->elems[i].seg_flag);
+		for( unsigned int i = 0; i < num_blocks2; ++i)
+			printf("sum[%d] = %d seg_flag=%d\n",i,table->sums[i].val,table->sums[i].seg_flag);
+
+	}while(table->sums[num_blocks2-1].val && i<10);
 }
 
 void
@@ -243,9 +270,6 @@ runTest( int argc, char** argv)
 	
 	table=make_tab(n,num_blocks2);
 
-	elem* d_elems;
-	sum* d_sums;
-	  
 	// initialize the input data on the host to be integer values
 	// between 0 and 1000
 	srand(time(NULL));
@@ -268,10 +292,6 @@ runTest( int argc, char** argv)
 	}
 	printf(" ;\n");
 	table->elems[0].seg_flag2=1;
-	table->elems[0].val=-198;
-	table->elems[1].val=-975;
-	table->elems[2].val=62;
-	table->elems[3].val=-234;
 	for(unsigned int i=num_elements;i<n;++i){
 		table->elems[i].val=INT_MAX;
 		table->elems[i].seg_flag2=1;
@@ -279,11 +299,6 @@ runTest( int argc, char** argv)
 	}
 	for(int i=0;i<num_blocks2;++i)
 		table->sums[i].val=0;
-
-	cutilSafeCall( cudaMalloc( (void**) &d_elems, table->n*sizeof(elem)));
-	cutilSafeCall( cudaMalloc( (void**) &d_sums, num_blocks2*sizeof(sum)));
-	cutilSafeCall( cudaMemcpy( d_elems, table->elems, table->n*sizeof(elem), cudaMemcpyHostToDevice) );
-	cutilSafeCall( cudaMemcpy( d_sums, table->sums, num_blocks2*sizeof(sum), cudaMemcpyHostToDevice) );
 
 //	const unsigned int num_threads_per_block=MAX_NUM_OF_THREADS_PER_BLOCK;
 	const unsigned int num_elements_per_block=n/num_blocks;
@@ -304,7 +319,7 @@ runTest( int argc, char** argv)
 	cutilCheckError(cutStartTimer(timer));
 	for (unsigned int i = 0; i < numIterations; ++i)
 	{
-		quicksort(d_elems,d_sums,num_elements,n,num_elements_per_block,num_blocks,num_blocks2);
+		quicksort(table,num_elements,n,num_elements_per_block,num_blocks,num_blocks2);
 	}
 	cudaThreadSynchronize();
 	cutilCheckError(cutStopTimer(timer));
@@ -315,23 +330,15 @@ runTest( int argc, char** argv)
 	// check for any errors
 	cutilCheckMsg("Kernel execution failed");
 
-	cutilSafeCall(cudaMemcpy( table->elems, d_elems,table->n*sizeof(elem),cudaMemcpyDeviceToHost));
-	cutilSafeCall(cudaMemcpy( table->sums, d_sums,num_blocks2*sizeof(sum),cudaMemcpyDeviceToHost));
-	for( unsigned int i = 0; i < n; ++i)
-		printf("val[%d] = %d seg_flag2 = %d pivot[%d] = %d offset=%d idown=%d iup=%d iup2=%d flag=%d\n",i,table->elems[i].val,table->elems[i].seg_flag2,i,table->elems[i].pivot,table->elems[i].offset,table->elems[i].idown,table->elems[i].iup1,table->elems[i].iup2,table->elems[i].seg_flag);
-	for( unsigned int i = 0; i < num_blocks2; ++i)
-		printf("sum[%d] = %d seg_flag=%d\n",i,table->sums[i].val,table->sums[i].seg_flag);
 //	printf("sum[%d] = %d\n",0,table->sums[0].val);
 //	printf("thread[%d] = %d\n",n-1,table->elems[n-1].val);
 	printf("\nAuthor: Paweł Baran. e-mail: shatov33@gmail.com .\n");
 
 	// cleanup memory
 	printf("a3\n");
-	cutilSafeCall(cudaFree(d_elems));
 	printf("a4\n");
-	cutilSafeCall(cudaFree(d_sums));
 	printf("a5\n");
-//	free_tab(table);
+	free_tab(table);
 	printf("a6\n");
 	cutilCheckError(cutDeleteTimer(timer));
 	printf("a7\n");
