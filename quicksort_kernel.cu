@@ -512,7 +512,9 @@ __global__ void make_iup2s2(elem *g_elems, sum* g_sums, int thread_elems_num,int
 		g_elems[0].iup2=(g_elems[1].seg_flag2)?0:1-g_elems[1].pivot+g_elems[1].iup2;
 //		g_elems[0].iup2=117-g_elems[1].pivot+g_elems[1].iup2;
 	if(thid==0 && bid==0)
-		g_elems[num_blocks2*threads_num*thread_elems_num-1].iup2=0;
+		g_elems[num_blocks*threads_num*thread_elems_num-1].iup2=0;
+/*
+		*/
 }
 
 __global__ void make_iup1s2(elem *g_elems, sum* g_sums, int thread_elems_num,int num_blocks2){
