@@ -921,6 +921,7 @@ __global__ void check_order(elem *g_elems, sum* g_sums, int n_real,int n,int num
 	__syncthreads();
 	if(thid==0)
 		g_sums[bid].val=f[threads_num-1];
+		g_sums[bid].seg_flag=0;
 }
 
 //	g_elems[begin]=is_sorted2();
