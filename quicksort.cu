@@ -138,9 +138,9 @@ void quicksort(tab* table,int num_elements,int n,int num_elements_per_block,int 
 	for( unsigned int i = 0; i < num_blocks2; ++i)
 		printf("sum[%d] = %d seg_flag=%d\n",i,table->sums[i].val,table->sums[i].seg_flag);
 
+	cutilSafeCall( cudaMalloc( (void**) &d_elems, table->n*sizeof(elem)));
+	cutilSafeCall( cudaMalloc( (void**) &d_sums, num_blocks2*sizeof(sum)));
 	do{
-		cutilSafeCall( cudaMalloc( (void**) &d_elems, table->n*sizeof(elem)));
-		cutilSafeCall( cudaMalloc( (void**) &d_sums, num_blocks2*sizeof(sum)));
 		cutilSafeCall( cudaMemcpy( d_elems, table->elems, table->n*sizeof(elem), cudaMemcpyHostToDevice) );
 		cutilSafeCall( cudaMemcpy( d_sums, table->sums, num_blocks2*sizeof(sum), cudaMemcpyHostToDevice) );
 
@@ -219,9 +219,6 @@ void quicksort(tab* table,int num_elements,int n,int num_elements_per_block,int 
 
 		cutilSafeCall(cudaMemcpy( table->elems, d_elems,table->n*sizeof(elem),cudaMemcpyDeviceToHost));
 		cutilSafeCall(cudaMemcpy( table->sums, d_sums,num_blocks2*sizeof(sum),cudaMemcpyDeviceToHost));
-	
-		cutilSafeCall(cudaFree(d_elems));
-		cutilSafeCall(cudaFree(d_sums));
 
 		printf("Iteration: %d\n",++i);
 		for( unsigned int i = 0; i < num_elements; ++i)
@@ -230,6 +227,9 @@ void quicksort(tab* table,int num_elements,int n,int num_elements_per_block,int 
 			printf("sum[%d] = %d seg_flag=%d\n",i,table->sums[i].val,table->sums[i].seg_flag);
 
 	}while(table->sums[num_blocks2-1].val && i<MAX_LOOP);
+	
+	cutilSafeCall(cudaFree(d_elems));
+	cutilSafeCall(cudaFree(d_sums));
 }
 
 void
@@ -269,6 +269,7 @@ runTest( int argc, char** argv)
 	while(num_blocks2<num_blocks) num_blocks2<<=1;
 	
 	table=make_tab(n,num_blocks2);
+	printf("make_tab with n=%d num_blocks2=%d\n",n,num_blocks2);
 
 	// initialize the input data on the host to be integer values
 	// between 0 and 1000
@@ -335,13 +336,8 @@ runTest( int argc, char** argv)
 	printf("\nAuthor: Paweł Baran. e-mail: shatov33@gmail.com .\n");
 
 	// cleanup memory
-	printf("a3\n");
-	printf("a4\n");
-	printf("a5\n");
 	free_tab(table);
-	printf("a6\n");
 	cutilCheckError(cutDeleteTimer(timer));
-	printf("a7\n");
 
 	cudaThreadExit();
 }
