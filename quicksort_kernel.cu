@@ -758,6 +758,28 @@ __global__ void make_iup2s(elem *g_elems, sum* g_sums, int thread_elems_num, int
 	}
 }
 
+__global__ void move_elems2(elem* g_elems,int thread_elems_num){
+	const int threads_num=blockDim.x; // number of threads in each block
+	const int bid=blockIdx.x; // given block's number
+  const int thid=threadIdx.x; // thread's number in given block
+	const int n=threads_num*thread_elems_num;
+	const int begin=bid*n+thid*thread_elems_num;
+
+	for(int i=0;i<thread_elems_num;++i)
+		g_elems[begin+i].val=g_elems[begin+i].pivot2;
+}
+
+__global__ void move_elems1(elem* g_elems,int thread_elems_num){
+	const int threads_num=blockDim.x; // number of threads in each block
+	const int bid=blockIdx.x; // given block's number
+  const int thid=threadIdx.x; // thread's number in given block
+	const int n=threads_num*thread_elems_num;
+	const int begin=bid*n+thid*thread_elems_num;
+
+	for(int i=0;i<thread_elems_num;++i)
+		g_elems[g_elems[begin+i].offset+(g_elems[begin+i].pivot?g_elems[begin+i].iup1+g_elems[begin+i].iup2:g_elems[begin+i].idown)].pivot2=g_elems[begin+i].val;
+}
+
 __global__ void make_iup1s(elem *g_elems, sum* g_sums, int thread_elems_num){
 	const int threads_num=blockDim.x; // number of threads in each block
 	const int bid=blockIdx.x; // given block's number
