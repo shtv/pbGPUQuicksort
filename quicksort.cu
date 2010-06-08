@@ -129,19 +129,6 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 
 	printf("mikki: threads=%d elems=%d elems_per_block%d blocks=%d blocks2=%d n=%d\n",num_threads2,num_elements,num_elements_per_block,num_blocks,num_blocks2,n);
 
-	// zakomentowane na jakis czas:
-	/*
-	check_order<<< grid, threads, sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
-		(d_elems, d_sums, num_elements,num_elements_per_block,num_blocks,num_blocks2);
-
-	check_order2<<< grid2, threads2,  sizeof(int)*num_threads2 >>>
-		(d_sums,num_blocks2);
-		*/
-
-/*	
-	make_pivots<<< grid, threads, sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
-		(d_elems, d_sums, num_elements,num_elements_per_block,num_blocks,num_blocks2);
-		*/
 	make_pivots<<< grid, threads, 4*sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 		(d_elems, d_sums, num_elements_per_block/MAX_NUM_OF_THREADS_PER_BLOCK);
 
@@ -210,8 +197,12 @@ void quicksort(elem* d_elems,sum* d_sums,int num_elements,int n,int num_elements
 	
 	cutilCheckMsg("move_elems3");
 	move_elems3<<< grid, threads >>> (d_elems, 2, num_elements);
-/*	
-		*/
+
+	check_order<<< grid, threads, sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
+		(d_elems, d_sums, num_elements,num_elements_per_block,num_blocks,num_blocks2);
+
+	up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+
 }
 
 void

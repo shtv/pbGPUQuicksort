@@ -874,38 +874,6 @@ __global__ void make_pivots(elem *g_elems, sum* g_sums, int thread_elems_num){
 // n_real - number of elements to be sorted
 // n - number of elements to be sorted in each block
 //__global__ void quicksort_kernel(elem *g_elems, int n_real,int n,int num_blocks){
-__global__ void check_order2(sum* g_sums,int num_blocks2){
-	int thid=threadIdx.x; // thread's number in block
-	int threads_num=blockDim.x;
-	int thread_elems_num=num_blocks2/threads_num; // number of elements in ech thread
-
-	extern __shared__ int absolute_shared[];
-	int* f=(int*)&absolute_shared[0];
-
-	f[thid]=0;
-	for(int i=0;i<thread_elems_num;++i)
-		if(g_sums[thid*thread_elems_num+i].val)
-			f[thid]=1;
-
-	int offset=1;
-	for(int d=threads_num>>1;d>0;d>>=1){
-		__syncthreads();
-		if(thid<d){
-			int ai=offset*(2*thid+1)-1;
-			int bi=offset*(2*thid+2)-1;
-			f[bi]|=f[ai];
-		}
-		offset<<=1;
-	}
-
-	__syncthreads();
-	if(thid==0)
-		g_sums[1].val=f[threads_num-1];
-}
-
-// n_real - number of elements to be sorted
-// n - number of elements to be sorted in each block
-//__global__ void quicksort_kernel(elem *g_elems, int n_real,int n,int num_blocks){
 __global__ void check_order(elem *g_elems, sum* g_sums, int n_real,int n,int num_blocks,int num_blocks2){
 	const int threads_num=blockDim.x; // number of threads in each block
 	const int bid=blockIdx.x; // given block's number
