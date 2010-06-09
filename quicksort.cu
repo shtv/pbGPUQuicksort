@@ -15,7 +15,7 @@
 #define NUM_OF_ELEMENTS 1024  // k, where k = 1, 2, ...
 #define NUM_OF_ARRAYS_PER_BLOCK 6
 #define MAX_SHARED_MEMORY_SIZE 
-#define MAX_LOOP 1000
+#define MAX_LOOP 100000
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -117,6 +117,8 @@ void quicksort(tab* table,int num_elements,int n,int num_elements_per_block,int 
 
 	dim3  grid(num_blocks, 1, 1); 
 	dim3  threads(MAX_NUM_OF_THREADS_PER_BLOCK, 1, 1);
+	dim3  special_grid(num_blocks2, 1, 1); 
+	dim3  special_threads(1, 1, 1); 
 
 	int num_threads2=num_blocks2/2;
 	num_threads2+=num_blocks2 & 1;
@@ -133,10 +135,12 @@ void quicksort(tab* table,int num_elements,int n,int num_elements_per_block,int 
 	printf("mikki: threads=%d elems=%d elems_per_block%d blocks=%d blocks2=%d n=%d\n",num_threads2,num_elements,num_elements_per_block,num_blocks,num_blocks2,n);
 
 	printf("Before first iteration\n");
+	/*
 	for( unsigned int i = 0; i < num_elements; ++i)
 		printf("val[%d] = %d seg_flag2 = %d pivot[%d] = %d offset=%d idown=%d iup=%d iup2=%d flag=%d\n",i,table->elems[i].val,table->elems[i].seg_flag2,i,table->elems[i].pivot,table->elems[i].offset,table->elems[i].idown,table->elems[i].iup1,table->elems[i].iup2,table->elems[i].seg_flag);
 	for( unsigned int i = 0; i < num_blocks2; ++i)
 		printf("sum[%d] = %d seg_flag=%d\n",i,table->sums[i].val,table->sums[i].seg_flag);
+		*/
 
 	cutilSafeCall( cudaMalloc( (void**) &d_elems, table->n*sizeof(elem)));
 	cutilSafeCall( cudaMalloc( (void**) &d_sums, num_blocks2*sizeof(sum)));
@@ -212,8 +216,12 @@ void quicksort(tab* table,int num_elements,int n,int num_elements_per_block,int 
 		check_order<<< grid, threads, sizeof(int)*MAX_NUM_OF_THREADS_PER_BLOCK >>>
 			(d_elems, d_sums, num_elements,num_elements_per_block,num_blocks,num_blocks2);
 
-		cutilCheckMsg("upsweep_sum");
+		cutilCheckMsg("check_order2");
+		check_order2<<< special_grid, special_threads >>>
+			(d_sums, num_blocks);
+
 		up_sweep_for_sum(d_sums,num_blocks2,num_elements_per_block);
+		cutilCheckMsg("upsweep_sum");
 		/*
 		*/
 

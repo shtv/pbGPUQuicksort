@@ -922,7 +922,15 @@ __global__ void check_order(elem *g_elems, sum* g_sums, int n_real,int n,int num
 	__syncthreads();
 	if(thid==0)
 		g_sums[bid].val=f[threads_num-1];
+	g_sums[bid].seg_flag=0;
+}
+
+__global__ void check_order2(sum* g_sums,int num_blocks){
+	const int bid=blockIdx.x; // given block's number
+	if(bid>=num_blocks){
+		g_sums[bid].val=0;
 		g_sums[bid].seg_flag=0;
+	}
 }
 
 //	g_elems[begin]=is_sorted2();
